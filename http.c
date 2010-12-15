@@ -27,11 +27,9 @@ void http_free_lines(char **lines)
 
 char **http_read_lines(int sock)
 {
-	int siz = 10 * sizeof(char *), curline = 0, eat_amount = 0;
-	char **lines = malloc(siz);
+	int nlines = 10, curline = 0, eat_amount = 0;
+	char **lines = malloc(nlines * sizeof(char *));
 	char buffer[BSIZ];
-
-	memset(lines, 0, siz);
 
 	do{
 		char *pos;
@@ -51,6 +49,7 @@ char **http_read_lines(int sock)
 			*pos = '\0';
 			if(!*buffer){
 				RECV(2, 0); /* nom */
+				lines[curline] = NULL;
 				return lines;
 			}
 
@@ -60,17 +59,15 @@ char **http_read_lines(int sock)
 				return NULL;
 			}
 
-			if(curline == siz){
+			if(curline == nlines){
 				char **new;
-				siz += 10 * sizeof(char *);
-				new = realloc(lines, siz);
+				nlines += 10;
+				new = realloc(lines, nlines * sizeof(char *));
 				if(!new){
 					perror("realloc()");
 					http_free_lines(lines);
 					return NULL;
 				}
-
-				memset(lines + siz, 0, 10);
 				lines = new;
 			}
 
