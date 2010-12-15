@@ -10,6 +10,12 @@
 #include <unistd.h>
 
 #include "http.h"
+#include "file.h"
+
+int proto_is_net(const char *proto)
+{
+	return !strcmp(proto, "http");
+}
 
 int parseurl(char *url,
 		char **phost, char **pfile,
@@ -29,18 +35,23 @@ int parseurl(char *url,
 		proto = "http";
 	}
 
-	file = strchr(host, '/');
-	if(!file){
-		fprintf(stderr, "need file\n");
-		return 1;
+	if(*host == '/'){
+		file = host;
+		host = NULL;
+	}else{
+		file = strchr(host, '/');
+		if(!file){
+			fprintf(stderr, "need file\n");
+			return 1;
+		}
+
+		if((port = strrchr(host, ':')))
+			*port++ = '\0';
+		else
+			port = "80";
+		*file++ = '\0';
 	}
 
-	if((port = strrchr(host, ':')))
-		*port++ = '\0';
-	else
-		port = "80";
-
-	*file++ = '\0';
 	return 0;
 #undef host
 #undef file
@@ -93,11 +104,6 @@ int wget(char *url)
 	if(parseurl(url, &host, &file, &proto, &sport))
 		return 1;
 
-	if(strcmp(proto, "http")){
-		fprintf(stderr, "can't handle \"%s\"\n", proto);
-		return 1;
-	}
-
 	basename = strrchr(file, '/');
 	if(!basename++)
 		basename = file;
@@ -116,16 +122,31 @@ int wget(char *url)
 		return 1;
 	}
 
-	sock = dial(host, atoi(sport));
-	if(sock == -1)
-		return 1;
+	if(proto_is_net(proto)){
+		sock = dial(host, atoi(sport));
+		if(sock == -1)
+			return 1;
+	}else
+		sock = -1;
 
-	ret = http_GET(sock, url_dup, f);
-	close(sock);
+	if(!strcmp(proto, "http"))
+		ret = http_GET(sock, url_dup, f);
+	else if(!strcmp(proto, "file"))
+		ret = file_copy(file, f);
+	else{
+		ret = 1;
+		fprintf(stderr, "unknown protocol: %s\n", proto);
+	}
+
+	if(sock != -1)
+		close(sock);
+
+	if(fclose(f)){
+		perror("close()");
+		ret = 1;
+	}
 	if(!ret)
 		printf("saved to \"%s\"\n", basename);
-	if(fclose(f))
-		perror("close()");
 	return ret;
 }
 
