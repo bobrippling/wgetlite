@@ -41,7 +41,7 @@ int parseurl(char *url,
 	}else{
 		file = strchr(host, '/');
 		if(!file){
-			fprintf(stderr, "need file\n");
+			fprintf(stderr, "need file (try \"/\")\n");
 			return 1;
 		}
 
