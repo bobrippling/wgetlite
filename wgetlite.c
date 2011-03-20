@@ -3,18 +3,33 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <signal.h>
+#include <alloca.h>
 
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <netdb.h>
 #include <unistd.h>
 
 #include "http.h"
 #include "file.h"
+#include "ftp.h"
+
+#include "util.h"
+
+
+#define STR_EQUALS(a, b) !strcmp(a, b)
 
 int proto_is_net(const char *proto)
 {
-	return !strcmp(proto, "http");
+	return STR_EQUALS(proto, "http") ||
+		     STR_EQUALS(proto, "ftp");
+}
+
+char *proto_default_port(const char *proto)
+{
+	static char port_ftp[] = "21", port_http[] = "80";
+
+	if(STR_EQUALS(proto, "ftp"))
+		return port_ftp;
+
+	return port_http;
 }
 
 int parseurl(char *url,
@@ -48,7 +63,7 @@ int parseurl(char *url,
 		if((port = strrchr(host, ':')))
 			*port++ = '\0';
 		else
-			port = "80";
+			port = proto_default_port(proto);
 		*file++ = '\0';
 	}
 
@@ -57,34 +72,6 @@ int parseurl(char *url,
 #undef file
 #undef proto
 #undef port
-}
-
-int dial(char *host, int port)
-{
-#define CHECK(f, s) \
-	if(f){ \
-		perror(s "()"); \
-		return -1; \
-	}
-	struct sockaddr_in addr;
-	struct hostent *hent;
-	int sock;
-
-	if(!(hent = gethostbyname(host))){
-		fprintf(stderr, "gethostbyname(): %s\n", strerror(h_errno));
-		return -1;
-	}
-
-	CHECK((sock = socket(PF_INET, SOCK_STREAM, 0)) == -1, "socket");
-
-	memset(&addr, 0, sizeof addr);
-	memcpy(&addr.sin_addr.s_addr, hent->h_addr_list[0], sizeof addr.sin_addr.s_addr);
-	addr.sin_port   = htons(port);
-	addr.sin_family = AF_INET;
-
-	CHECK(connect(sock, (struct sockaddr *)&addr, sizeof addr) == -1, "connect");
-
-	return sock;
 }
 
 int wget(char *url)
@@ -131,6 +118,8 @@ int wget(char *url)
 
 	if(!strcmp(proto, "http"))
 		ret = http_GET(sock, url_dup, f);
+	else if(!strcmp(proto, "ftp"))
+		ret = ftp_RETR(sock, file, f);
 	else if(!strcmp(proto, "file"))
 		ret = file_copy(file, f);
 	else{
