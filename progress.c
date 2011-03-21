@@ -14,6 +14,13 @@ void progress_fin()
 
 void progress_show(int this, int total)
 {
+#define PROG(fmt, div)  \
+		printf("\r%d%% (%d " fmt " / %d " fmt ")", percent, this / div, total / div)
+
 	register int percent = 100.0f * (float)this / (float)total;
-	printf("\r%d%% (%d KB / %d KB)", percent, this, total);
+
+	if(this > 1024)
+		PROG("KB", 1024);
+	else
+		PROG("B", 1);
 }
