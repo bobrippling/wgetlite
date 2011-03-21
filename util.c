@@ -79,7 +79,7 @@ int fdprintf(int fd, const char *fmt, ...)
 	return write(fd, buffer, n);
 }
 
-int dial(const char *host, int port)
+int dial(const char *host, unsigned short port)
 {
 #define CHECK(f, s) \
 	if(f){ \
@@ -117,21 +117,27 @@ int generic_transfer(int sock, FILE *out, const char *fname, size_t len)
 
 	(void)fname;
 
-	if(!len){
-		last_progress = mstime();
+	last_progress = mstime();
+	if(!len)
 		progress_unknown();
-	}
 
 	do{
 		ssize_t nread;
 		char buffer[BSIZ];
+		long t;
 
 		switch((nread = recv(sock, buffer, sizeof buffer, 0))){
 			case -1:
 				perror("recv()");
 				RET(1);
 			case 0:
-				RET(0);
+				if(len && sofar == len)
+					RET(0);
+				else{
+					/* FIXME: retry */
+					progress_incomplete();
+					RET(1);
+				}
 
 			default:
 				if(!fwrite(buffer, sizeof(buffer[0]), nread, out)){
@@ -140,16 +146,16 @@ int generic_transfer(int sock, FILE *out, const char *fname, size_t len)
 				}
 		}
 
-		if(len){
-			sofar += nread;
-			progress_show(sofar, len);
-		}else{
-			long t = mstime();
+		sofar += nread;
 
-			if(last_progress + 250 < t){
-				last_progress = t;
+		t = mstime();
+		if(last_progress + 100 < t){
+			last_progress = t;
+
+			if(len)
+				progress_show(sofar, len);
+			else
 				progress_unknown();
-			}
 		}
 	}while(1);
 
