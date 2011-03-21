@@ -2,15 +2,14 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
-
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <netdb.h>
 #include <unistd.h>
+#include <errno.h>
 
+#include <netdb.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 #include <sys/time.h>
-#include <sys/socket.h>
 
 #include "util.h"
 #include "progress.h"
@@ -79,32 +78,40 @@ int fdprintf(int fd, const char *fmt, ...)
 	return write(fd, buffer, n);
 }
 
-int dial(const char *host, unsigned short port)
+int dial(const char *host, const char *port)
 {
-#define CHECK(f, s) \
-	if(f){ \
-		perror(s "()"); \
-		return -1; \
-	}
-	struct sockaddr_in addr;
-	struct hostent *hent;
-	int sock;
+	struct addrinfo hints, *list = NULL, *iter;
+	int sock, last_err;
 
-	if(!(hent = gethostbyname(host))){
-		const char *hstrerror(int);
-		fprintf(stderr, "gethostbyname(): %s\n", hstrerror(h_errno));
-		return -1;
+	memset(&hints, '\0', sizeof hints);
+	hints.ai_family   = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+
+	if((last_err = getaddrinfo(host, port, &hints, &list))){
+		fprintf(stderr, "getaddrinfo(): %s\n", gai_strerror(last_err));
+		return 1;
 	}
 
-	CHECK((sock = socket(PF_INET, SOCK_STREAM, 0)) == -1, "socket");
 
-	memset(&addr, 0, sizeof addr);
-	memcpy(&addr.sin_addr.s_addr, hent->h_addr_list[0], sizeof addr.sin_addr.s_addr);
-	addr.sin_port   = htons(port);
-	addr.sin_family = AF_INET;
+	for(iter = list; iter; iter = iter->ai_next){
+		sock = socket(iter->ai_family, iter->ai_socktype, iter->ai_protocol);
 
-	CHECK(connect(sock, (struct sockaddr *)&addr, sizeof addr) == -1, "connect");
+		if(sock == -1)
+			continue;
 
+		if(connect(sock, iter->ai_addr, iter->ai_addrlen) == 0)
+			break;
+
+		if(errno)
+			last_err = errno;
+		close(sock);
+		sock = -1;
+	}
+
+	freeaddrinfo(list);
+
+	if(sock == -1)
+		errno = last_err;
 	return sock;
 }
 
@@ -160,6 +167,9 @@ int generic_transfer(int sock, FILE *out, const char *fname, size_t len)
 	}while(1);
 
 fin:
-	progress_fin();
+	if(len)
+		progress_fin(sofar, len);
+	else
+		progress_fin(0, 0);
 	return ret;
 }

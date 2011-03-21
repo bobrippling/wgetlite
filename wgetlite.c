@@ -86,7 +86,7 @@ int wget(const char *url)
 	FILE *f;
 	char *host, *file, *proto, *sport;
 	char *basename, *url_dup, *fullpath;
-	int sock, ret, port;
+	int sock, ret;
 
 	url_dup  = alloca(strlen(url) + 1);
 	fullpath = alloca(strlen(url) + 1);
@@ -129,8 +129,7 @@ int wget(const char *url)
 	}
 
 	if(proto_is_net(proto)){
-		port = atoi(sport);
-		sock = dial(host, port);
+		sock = dial(host, sport);
 		if(sock == -1){
 			free(basename);
 			return 1;

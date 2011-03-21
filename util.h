@@ -11,7 +11,7 @@ char *strdup(const char *s);
 
 char *readline(int sock); /* in */
 int fdprintf(int fd, const char *fmt, ...); /* out */
-int dial(const char *host, unsigned short port); /* shake it all about */
+int dial(const char *host, const char *port); /* shake it all about */
 /* do the hokey kokey and you turn around, that's what it's all about */
 int generic_transfer(int sock, FILE *out, const char *fname, size_t len);
 

@@ -1,4 +1,4 @@
-CFLAGS = -Wall -Wextra -pedantic -g -std=c99
+CFLAGS = -Wall -Wextra -pedantic -g -std=c99 -D_POSIX_SOURCE
 
 wgetlite: wgetlite.o http.o progress.o util.o file.o ftp.o
 
