@@ -138,13 +138,17 @@ int generic_transfer(int sock, FILE *out, const char *fname, size_t len)
 				perror("recv()");
 				RET(1);
 			case 0:
-				if(len && sofar == len)
+				if(len){
+					if(sofar == len)
+						RET(0);
+					else{
+						/* FIXME: retry */
+						progress_incomplete();
+						RET(1);
+					}
+				}else
+					/* no length, assume we have the whole file */
 					RET(0);
-				else{
-					/* FIXME: retry */
-					progress_incomplete();
-					RET(1);
-				}
 
 			default:
 				if(!fwrite(buffer, sizeof(buffer[0]), nread, out)){
