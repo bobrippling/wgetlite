@@ -29,7 +29,7 @@ int ftp_download(const char *host, int port, FILE *out, const char *fname, size_
 	return generic_transfer(sock, out, fname, len);
 }
 
-int ftp_RETR(int sock, const char *fname, FILE *out)
+int ftp_RETR(int sock, const char *fname, FILE **out)
 {
 	char *line, host[3 * 4 + 3 + 1]; /* xxx.xxx.xxx.xxx */
 	size_t size;
@@ -123,5 +123,5 @@ login_fail:
 
 	fdprintf(sock, "RETR %s\r\n", fname);
 	/* FIXME: check for any more messages? */
-	return ftp_download(host, port, out, fname, size);
+	return ftp_download(host, port, *out, fname, size);
 }

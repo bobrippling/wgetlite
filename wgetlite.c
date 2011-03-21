@@ -10,11 +10,18 @@
 #include "http.h"
 #include "file.h"
 #include "ftp.h"
+#include "wgetlite.h"
 
 #include "util.h"
 
+#ifndef PATH_MAX
+# define PATH_MAX 255
+#endif
+
 
 #define STR_EQUALS(a, b) !strcmp(a, b)
+
+struct cfg global_cfg = { 0 };
 
 int proto_is_net(const char *proto)
 {
@@ -74,28 +81,26 @@ int parseurl(char *url,
 #undef port
 }
 
-int wget(char *url)
+int wget(const char *url)
 {
 	FILE *f;
 	char *host, *file, *proto, *sport;
-	char *basename, *url_dup;
-	int sock, ret;
+	char *basename, *url_dup, *fullpath;
+	int sock, ret, port;
 
-	url_dup = alloca(strlen(url) + 1);
-	if(!url_dup){
-		perror("malloc()");
-		return 1;
-	}
-	strcpy(url_dup, url);
+	url_dup  = alloca(strlen(url) + 1);
+	fullpath = alloca(strlen(url) + 1);
+	strcpy(url_dup,  url);
+	strcpy(fullpath, url);
 
-	if(parseurl(url, &host, &file, &proto, &sport))
+	if(parseurl(url_dup, &host, &file, &proto, &sport))
 		return 1;
 
 	basename = strrchr(file, '/');
 	if(!basename++)
 		basename = file;
 
-	if(!strlen(basename))
+	if(!*basename)
 		basename = "index.html";
 
 #ifdef VERBOSE
@@ -103,25 +108,38 @@ int wget(char *url)
 			host, proto, sport, file, basename);
 #endif
 
+	basename = strdup(basename);
+	if(!basename){
+		perror("strdup()");
+		return 1;
+	}
+
+	if(strlen(basename) > PATH_MAX)
+		basename[PATH_MAX - 1] = '\0';
+
 	f = fopen(basename, "w");
 	if(!f){
 		fprintf(stderr, "open: \"%s\": %s\n", basename, strerror(errno));
+		free(basename);
 		return 1;
 	}
 
 	if(proto_is_net(proto)){
-		sock = dial(host, atoi(sport));
-		if(sock == -1)
+		port = atoi(sport);
+		sock = dial(host, port);
+		if(sock == -1){
+			free(basename);
 			return 1;
+		}
 	}else
 		sock = -1;
 
 	if(!strcmp(proto, "http"))
-		ret = http_GET(sock, url_dup, f);
+		ret = http_GET(sock, fullpath, &f);
 	else if(!strcmp(proto, "ftp"))
-		ret = ftp_RETR(sock, file, f);
+		ret = ftp_RETR(sock, file, &f);
 	else if(!strcmp(proto, "file"))
-		ret = file_copy(file, f);
+		ret = file_copy(file, &f);
 	else{
 		ret = 1;
 		fprintf(stderr, "unknown protocol: %s\n", proto);
@@ -130,12 +148,16 @@ int wget(char *url)
 	if(sock != -1)
 		close(sock);
 
-	if(fclose(f)){
-		perror("close()");
-		ret = 1;
+	if(f){
+		if(fclose(f)){
+			perror("close()");
+			ret = 1;
+		}
+		if(!ret)
+			printf("saved to \"%s\"\n", basename);
 	}
-	if(!ret)
-		printf("saved to \"%s\"\n", basename);
+
+	free(basename);
 	return ret;
 }
 
@@ -155,11 +177,13 @@ int main(int argc, char **argv)
 	signal(SIGPIPE, sigh);
 
 	for(i = 1; i < argc; i++)
-		if(!url)
+		if(!strcmp(argv[i], "-v"))
+			global_cfg.verbose = 1;
+		else if(!url)
 			url = argv[i];
 		else{
 		usage:
-			fprintf(stderr, "Usage: %s url\n", *argv);
+			fprintf(stderr, "Usage: %s [-v] url\n", *argv);
 			return 1;
 		}
 

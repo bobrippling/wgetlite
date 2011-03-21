@@ -2,9 +2,9 @@
 #include <string.h>
 #include <errno.h>
 
-int file_copy(const char *src, FILE *dest)
+int file_copy(const char *src, FILE **pdest)
 {
-	FILE *in = fopen(src, "r");
+	FILE *in = fopen(src, "r"), *dest = *pdest;
 	char buffer[4096];
 	size_t nread;
 

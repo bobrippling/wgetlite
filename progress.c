@@ -12,7 +12,8 @@ void progress_fin()
 	putchar('\n');
 }
 
-void progress_show(int this, int total, const char *file)
+void progress_show(int this, int total)
 {
-	printf("\r\"%s\": %d / %d", file, this, total);
+	register int percent = 100.0f * (float)this / (float)total;
+	printf("\r%d%% (%d KB / %d KB)", percent, this, total);
 }

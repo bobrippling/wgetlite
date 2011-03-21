@@ -41,20 +41,19 @@ char *readline(int sock)
 #define RECV(len, flags) \
 	switch(recv(sock, buffer, len, flags)){ \
 		case -1: \
-		case  0: /* unexpected here - need \r\n\r\n */ \
 			perror("recv()"); \
+			return NULL; \
+		case  0: /* unexpected here - need \r\n\r\n */ \
+			fputs("premature EOF\n", stderr); \
 			return NULL; \
 	}
 
 	RECV(sizeof buffer, MSG_PEEK);
 
 	if((pos = strstr(buffer, "\r\n"))){
-		int len;
-
-		*pos = '\0';
-		len = 1 + strlen(buffer);
-
+		int len = pos - buffer + 2;
 		RECV(len, 0);
+		*pos = '\0';
 
 		return strdup(buffer);
 	}
@@ -92,7 +91,8 @@ int dial(const char *host, int port)
 	int sock;
 
 	if(!(hent = gethostbyname(host))){
-		fprintf(stderr, "gethostbyname(): %s\n", strerror(h_errno));
+		const char *hstrerror(int);
+		fprintf(stderr, "gethostbyname(): %s\n", hstrerror(h_errno));
 		return -1;
 	}
 
@@ -114,6 +114,8 @@ int generic_transfer(int sock, FILE *out, const char *fname, size_t len)
 	int ret = 0;
 	size_t sofar = 0;
 	long last_progress;
+
+	(void)fname;
 
 	if(!len){
 		last_progress = mstime();
@@ -140,7 +142,7 @@ int generic_transfer(int sock, FILE *out, const char *fname, size_t len)
 
 		if(len){
 			sofar += nread;
-			progress_show(sofar, len, fname);
+			progress_show(sofar, len);
 		}else{
 			long t = mstime();
 

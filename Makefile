@@ -8,8 +8,8 @@ clean:
 .PHONY: clean
 
 file.o: file.c
-ftp.o: ftp.c
-http.o: http.c http.h progress.h util.h
+ftp.o: ftp.c util.h
+http.o: http.c http.h progress.h util.h wgetlite.h
 progress.o: progress.c progress.h
-util.o: util.c util.h
-wgetlite.o: wgetlite.c http.h file.h
+util.o: util.c util.h progress.h
+wgetlite.o: wgetlite.c http.h file.h ftp.h wgetlite.h util.h

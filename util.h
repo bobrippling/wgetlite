@@ -4,7 +4,7 @@
 /* general stuff */
 
 long mstime(void);
-
+char *strdup(const char *s);
 
 /* socket util */
 
