@@ -7,10 +7,12 @@
 
 #include "util.h"
 
-#define VERBOSE 1
-
 #define WRITE(fd, str) write(fd, str, strlen(str))
-#define READLINE_OR_FAIL(l, s) do { l = readline(s); if(!l){perror("readline()"); return 1;} }while(0)
+
+#define FTP_FILE_STATUS        213
+#define FTP_ENTER_PASSIVE_MODE 227
+#define FTP_PROCEED            230
+#define FTP_NEED_PASS          331
 
 int ftp_retcode(const char *s)
 {
@@ -29,44 +31,80 @@ int ftp_download(const char *host, int port, FILE *out, const char *fname, size_
 	return generic_transfer(sock, out, fname, len);
 }
 
+char *ftp_findhyphen(char *line)
+{
+	for(; *line; line++)
+		if(*line == '-')
+			return line;
+		else if(!('0' <= *line && *line <= '9'))
+			break;
+
+	return NULL;
+}
+
+char *ftp_readline(int sock)
+{
+	char *line = readline(sock), *hyphen;
+
+	if(!line)
+		return NULL;
+
+	if((hyphen = ftp_findhyphen(line))){
+		/* extended response */
+		do{
+			free(line);
+			line = readline(sock);
+			if(!(hyphen = ftp_findhyphen(line)))
+				break;
+#ifdef VERBOSE
+			else
+				fprintf(stderr, "Server Info: \"%s\"\n", hyphen + 1);
+#endif
+		}while(1);
+	}
+
+	return line;
+}
+
 int ftp_RETR(int sock, const char *fname, FILE **out)
 {
-	char *line, host[3 * 4 + 3 + 1]; /* xxx.xxx.xxx.xxx */
+	char *line, host[3 * 4 + 3 + 1] /* xxx.xxx.xxx.xxx */, *ident;
 	size_t size;
 	int i, h[4], p[2], port;
 
-	READLINE_OR_FAIL(line, sock);
+#define FTP_READLINE(b) if(!(line = ftp_readline(b))) return 1
+
+	FTP_READLINE(sock);
 
 	/* some sort of id... */
-#ifdef VERBOSE
-	printf("FTP First line: %s\n", line);
-#endif
+	ident = strchr(line, ' ');
+	if(!*ident++)
+		ident = line;
+
+	printf("FTP Server Ident: %s\n", ident);
 	free(line);
 
-
 	WRITE(sock, "USER anonymous\r\n");
-	READLINE_OR_FAIL(line, sock);
+	FTP_READLINE(sock);
 
 	i = ftp_retcode(line);
 	free(line);
 
 	switch(i){
-		case 331:
+		case FTP_NEED_PASS:
 			WRITE(sock, "PASS -wgetlite@\r\n");
-			READLINE_OR_FAIL(line, sock);
+			FTP_READLINE(sock);
 
 			i = ftp_retcode(line);
 			free(line);
 
-			if(i != 230)
+			if(i != FTP_PROCEED)
 				goto login_fail;
 
 
-		case 230:
+		case FTP_PROCEED:
 			/* login success */
-#ifdef VERBOSE
 			fputs("FTP Anonymous Login Success\n", stderr);
-#endif
 			break;
 
 
@@ -81,14 +119,14 @@ login_fail:
 
 
 	WRITE(sock, "TYPE I\r\n");
-	READLINE_OR_FAIL(line, sock);
+	FTP_READLINE(sock);
 	free(line); /* FIXME - check return code */
 
-	fdprintf(sock, "SIZE %s", fname);
-	READLINE_OR_FAIL(line, sock);
+	fdprintf(sock, "SIZE %s\r\n", fname);
+	FTP_READLINE(sock);
 	i = ftp_retcode(line);
-	if(i != 213){
-		fprintf(stderr, "FTP SIZE command failed (%d)\n", i);
+	if(i != FTP_FILE_STATUS){
+		fprintf(stderr, "FTP SIZE command failed (%s)\n", line);
 		free(line);
 		return 1;
 	}
@@ -101,9 +139,9 @@ login_fail:
 
 
 	WRITE(sock, "PASV\r\n");
-	READLINE_OR_FAIL(line, sock);
+	FTP_READLINE(sock);
 	i = ftp_retcode(line);
-	if(i != 227){
+	if(i != FTP_ENTER_PASSIVE_MODE){
 		fprintf(stderr, "FTP PASV command failed (%d)\n", i);
 		return 1;
 	}
@@ -122,6 +160,6 @@ login_fail:
 	sprintf(host, "%d.%d.%d.%d", h[0], h[1], h[2], h[3]);
 
 	fdprintf(sock, "RETR %s\r\n", fname);
-	/* FIXME: check for any more messages? */
+
 	return ftp_download(host, port, *out, fname, size);
 }
