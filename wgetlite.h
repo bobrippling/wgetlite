@@ -4,6 +4,7 @@
 struct cfg
 {
 	int verbose;
+	const char *out_fname;
 };
 
 int wget(const char *url);

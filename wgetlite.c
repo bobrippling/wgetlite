@@ -21,7 +21,7 @@
 
 #define STR_EQUALS(a, b) !strcmp(a, b)
 
-struct cfg global_cfg = { 0 };
+struct cfg global_cfg = { 0, NULL };
 
 int proto_is_net(const char *proto)
 {
@@ -108,7 +108,11 @@ int wget(const char *url)
 			host, proto, sport, file, basename);
 #endif
 
-	basename = strdup(basename);
+	if(global_cfg.out_fname)
+		basename = strdup(global_cfg.out_fname);
+	else
+		basename = strdup(basename);
+
 	if(!basename){
 		perror("strdup()");
 		return 1;
@@ -179,11 +183,14 @@ int main(int argc, char **argv)
 	for(i = 1; i < argc; i++)
 		if(!strcmp(argv[i], "-v"))
 			global_cfg.verbose = 1;
-		else if(!url)
+		else if(!strcmp(argv[i], "-O")){
+			if(!(global_cfg.out_fname = argv[++i]))
+				goto usage;
+		}else if(!url)
 			url = argv[i];
 		else{
 		usage:
-			fprintf(stderr, "Usage: %s [-v] url\n", *argv);
+			fprintf(stderr, "Usage: %s [-v] [-O file] url\n", *argv);
 			return 1;
 		}
 
