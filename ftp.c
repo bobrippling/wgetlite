@@ -22,7 +22,7 @@ int ftp_retcode(const char *s)
 	return -1;
 }
 
-int ftp_download(const char *host, int port, FILE *out, const char *fname, size_t len)
+int ftp_download(const char *host, const char *port, FILE *out, const char *fname, size_t len)
 {
 	int sock = dial(host, port);
 	if(sock == -1)
@@ -68,9 +68,10 @@ char *ftp_readline(int sock)
 
 int ftp_RETR(int sock, const char *fname, FILE **out)
 {
-	char *line, host[3 * 4 + 3 + 1] /* xxx.xxx.xxx.xxx */, *ident;
+	char port[8], host[3 * 4 + 3 + 1] /* xxx.xxx.xxx.xxx */;
+	char *line, *ident;
 	size_t size;
-	int i, h[4], p[2], port;
+	int i, h[4], p[2];
 
 #define FTP_READLINE(b) if(!(line = ftp_readline(b))) return 1
 
@@ -126,12 +127,9 @@ login_fail:
 	FTP_READLINE(sock);
 	i = ftp_retcode(line);
 	if(i != FTP_FILE_STATUS){
-		fprintf(stderr, "FTP SIZE command failed (%s)\n", line);
-		free(line);
-		return 1;
-	}
-
-	if(sscanf(line, "%*d %zu", &size) != 1){
+		fprintf(stderr, "FTP Warning - SIZE command failed (%s)\n", line);
+		size = 0;
+	}else if(sscanf(line, "%*d %zu", &size) != 1){
 		fputs("Couldn't parse SIZE result, ignoring\n", stderr);
 		size = 0;
 	}
@@ -156,8 +154,8 @@ login_fail:
 
 	free(line);
 
-	port = (p[0] << 8) + p[1];
-	sprintf(host, "%d.%d.%d.%d", h[0], h[1], h[2], h[3]);
+	snprintf(port, sizeof port, "%d", (p[0] << 8) + p[1]);
+	snprintf(host, sizeof host, "%d.%d.%d.%d", h[0], h[1], h[2], h[3]);
 
 	fdprintf(sock, "RETR %s\r\n", fname);
 
