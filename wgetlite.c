@@ -130,6 +130,10 @@ int wget(const char *url)
 	if(outname){
 		if(strlen(outname) > PATH_MAX)
 			outname[PATH_MAX - 1] = '\0';
+		else if(!*outname){
+			free(outname);
+			outname = strdup("index.html");
+		}
 
 		f = fopen(outname, "w");
 		if(!f){
@@ -159,6 +163,7 @@ int wget(const char *url)
 		output_err(OUT_ERR, "unknown protocol: %s", proto);
 	}
 
+fin:
 	if(sock != -1)
 		close(sock);
 
@@ -175,10 +180,15 @@ int wget(const char *url)
 	}
 
 	free(outname);
+	free(host);
+	free(file);
+	free(proto);
+	free(port);
+
 	return ret;
 bail:
-	/* TODO: free */
-	return 1;
+	ret = 1;
+	goto fin;
 }
 
 void sigh(int sig)
