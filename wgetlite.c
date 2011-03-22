@@ -98,7 +98,7 @@ int wget(const char *url)
 	int sock, ret;
 
 	FILE *f = NULL;
-	long fpos = 0;
+	size_t fpos = 0;
 	char *outname;
 
 	char *host, *file, *proto, *port;
@@ -143,11 +143,12 @@ int wget(const char *url)
 		}
 
 		if(global_cfg.partial){
-			fpos = ftell(f);
-			if(fpos == -1){
+			long pos = ftell(f);
+			if(pos == -1){
 				output_perror("ftell()");
 				goto bail;
 			}
+			fpos = pos;
 		}
 	}else
 		f = stdout;

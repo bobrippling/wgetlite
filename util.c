@@ -128,11 +128,10 @@ int dial(const char *host, const char *port)
 	return sock;
 }
 
-int generic_transfer(int sock, FILE *out, const char *fname, size_t len)
+int generic_transfer(int sock, FILE *out, const char *fname, size_t len, size_t sofar)
 {
 #define RET(n) do{ ret = n; goto fin; }while(0)
 	int ret = 0;
-	size_t sofar = 0;
 	long last_progress;
 
 	(void)fname;

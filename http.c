@@ -95,7 +95,7 @@ char *http_GET_find_line(char **lines, char *line)
 	return NULL;
 }
 
-int http_GET_recv(int sock, FILE **f, const char *fname)
+int http_recv(int sock, FILE **f, const char *fname, size_t fpos)
 {
 	extern struct cfg global_cfg;
 	char **lines = http_read_lines(sock);
@@ -161,13 +161,13 @@ int http_GET_recv(int sock, FILE **f, const char *fname)
 
 	http_free_lines(lines);
 
-	return generic_transfer(sock, *f, fname, len);
+	return generic_transfer(sock, *f, fname, len, fpos);
 die:
 	http_free_lines(lines);
 	return 1;
 }
 
-int http_GET(int sock, const char *file, FILE **out, long fpos)
+int http_GET(int sock, const char *file, FILE **out, size_t fpos)
 {
 	extern struct cfg global_cfg;
 	char buffer[1024];
@@ -193,5 +193,5 @@ int http_GET(int sock, const char *file, FILE **out, long fpos)
 			return 1;
 	}
 
-	return http_GET_recv(sock, out, file);
+	return http_recv(sock, out, file, fpos);
 }

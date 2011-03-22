@@ -8,6 +8,7 @@
 #include "ftp.h"
 #include "util.h"
 #include "output.h"
+#include "wgetlite.h"
 
 #define WRITE(fd, str) write(fd, str, strlen(str))
 
@@ -15,6 +16,7 @@
 #define FTP_ENTER_PASSIVE_MODE 227
 #define FTP_PROCEED            230
 #define FTP_NEED_PASS          331
+#define FTP_REQ_FILE_PENDING   350
 
 int ftp_retcode(const char *s)
 {
@@ -24,13 +26,14 @@ int ftp_retcode(const char *s)
 	return -1;
 }
 
-int ftp_download(const char *host, const char *port, FILE *out, const char *fname, size_t len)
+int ftp_download(const char *host, const char *port, FILE *out,
+		const char *fname, size_t len, size_t offset)
 {
 	int sock = dial(host, port);
 	if(sock == -1)
 		return 1;
 
-	return generic_transfer(sock, out, fname, len);
+	return generic_transfer(sock, out, fname, len, offset);
 }
 
 char *ftp_findhyphen(char *line)
@@ -66,14 +69,13 @@ char *ftp_readline(int sock)
 	return line;
 }
 
-int ftp_RETR(int sock, const char *fname, FILE **out, long fpos)
+int ftp_RETR(int sock, const char *fname, FILE **out, size_t fpos)
 {
+	extern struct cfg global_cfg;
 	char port[8], host[3 * 4 + 3 + 1] /* xxx.xxx.xxx.xxx */;
 	char *line, *ident;
 	size_t size;
 	int i, h[4], p[2];
-
-	(void)fpos;
 
 #define FTP_READLINE(b) if(!(line = ftp_readline(b))) return 1
 
@@ -159,7 +161,24 @@ login_fail:
 	snprintf(port, sizeof port, "%d", (p[0] << 8) + p[1]);
 	snprintf(host, sizeof host, "%d.%d.%d.%d", h[0], h[1], h[2], h[3]);
 
+	if(global_cfg.partial && fpos){
+		char *reply;
+		fdprintf(sock, "REST %ld\r\n", fpos); /* RESTart */
+		FTP_READLINE(sock);
+
+		i = ftp_retcode(line);
+		reply = strchr(line, ' ');
+		if(reply)
+			output_err(OUT_INFO, "FTP REST: %s", reply + 1);
+		free(line);
+
+		if(i != FTP_REQ_FILE_PENDING){
+			output_err(OUT_ERR, "FTP REST failed");
+			return 1;
+		}
+	}
+
 	fdprintf(sock, "RETR %s\r\n", fname);
 
-	return ftp_download(host, port, *out, fname, size);
+	return ftp_download(host, port, *out, fname, size, fpos);
 }
