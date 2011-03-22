@@ -168,6 +168,8 @@ fin:
 		close(sock);
 
 	if(f){
+		const long pos = ftell(f);
+
 		if(f != stdout && fclose(f)){
 			output_perror("close()");
 			ret = 1;
@@ -177,6 +179,12 @@ fin:
 					outname ? "\"" : "",
 					outname ? outname : "stdout",
 					outname ? "\"" : "");
+		else if(!pos)
+			/*
+			 * Got a problem. So, if we wrote to the file,
+			 * leave it be for a -c operation, otherwise unlink it
+			 */
+			remove(outname);
 	}
 
 	free(outname);
