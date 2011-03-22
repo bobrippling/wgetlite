@@ -1,3 +1,8 @@
 -C: cookies (mm)
 
 Error messages - wgetlite: %s: %s\n
+
+HTTP:
+	User agent
+	Persistent connections?
+	Check Headers (Content-Disposition: attachment; filename="%s") for default filename
