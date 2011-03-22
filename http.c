@@ -167,11 +167,22 @@ die:
 	return 1;
 }
 
-int http_GET(int sock, const char *file, FILE **out)
+int http_GET(int sock, const char *file, FILE **out, long fpos)
 {
+	extern struct cfg global_cfg;
 	char buffer[1024];
 
 	snprintf(buffer, sizeof buffer, "GET %s HTTP/1.0\r\n\r\n", file);
+
+	/* TODO: User-Agent: wgetlite/0.9 */
+	if(global_cfg.partial && fpos){
+		char *append = strchr(buffer, '\0');
+		append -= 2;
+
+		snprintf(append, sizeof(buffer) - strlen(buffer) - 1,
+				"Range: bytes=%ld-\r\n\r\n", fpos);
+	}
+
 
 	/* TODO: printf("HTTP request sent, awaiting response..."); */
 

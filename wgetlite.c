@@ -98,6 +98,7 @@ int wget(const char *url)
 	int sock, ret;
 
 	FILE *f = NULL;
+	long fpos = 0;
 	char *outname;
 
 	char *host, *file, *proto, *port;
@@ -135,10 +136,18 @@ int wget(const char *url)
 			outname = strdup("index.html");
 		}
 
-		f = fopen(outname, "w");
+		f = fopen(outname, global_cfg.partial ? "a" : "w");
 		if(!f){
 			output_err(OUT_ERR, "open: \"%s\": %s", outname, strerror(errno));
 			goto bail;
+		}
+
+		if(global_cfg.partial){
+			fpos = ftell(f);
+			if(fpos == -1){
+				output_perror("ftell()");
+				goto bail;
+			}
 		}
 	}else
 		f = stdout;
@@ -152,12 +161,13 @@ int wget(const char *url)
 	}else
 		sock = -1;
 
+	/* TODO: function pointer */
 	if(!strcmp(proto, "http"))
-		ret = http_GET(sock, urlcpy, &f);
+		ret = http_GET(sock, urlcpy, &f, fpos);
 	else if(!strcmp(proto, "ftp"))
-		ret = ftp_RETR(sock, file, &f);
+		ret = ftp_RETR(sock, file, &f, fpos);
 	else if(!strcmp(proto, "file"))
-		ret = file_copy(file, &f);
+		ret = file_copy(file, &f, fpos);
 	else{
 		ret = 1;
 		output_err(OUT_ERR, "unknown protocol: %s", proto);
@@ -168,7 +178,7 @@ fin:
 		close(sock);
 
 	if(f){
-		const long pos = ftell(f);
+		fpos = ftell(f);
 
 		if(f != stdout && fclose(f)){
 			output_perror("close()");
@@ -179,7 +189,7 @@ fin:
 					outname ? "\"" : "",
 					outname ? outname : "stdout",
 					outname ? "\"" : "");
-		else if(!pos)
+		else if(!fpos)
 			/*
 			 * Got a problem. So, if we wrote to the file,
 			 * leave it be for a -c operation, otherwise unlink it

@@ -3,12 +3,15 @@
 #include <errno.h>
 
 #include "output.h"
+#include "file.h"
 
-int file_copy(const char *src, FILE **pdest)
+int file_copy(const char *src, FILE **pdest, long fpos)
 {
 	FILE *in = fopen(src, "r"), *dest = *pdest;
 	char buffer[4096];
 	size_t nread;
+
+	(void)fpos;
 
 	if(!in){
 		output_err(OUT_ERR, "open: %s: %s", src, strerror(errno));

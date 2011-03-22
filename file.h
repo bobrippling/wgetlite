@@ -1,6 +1,6 @@
 #ifndef FILE_H
 #define FILE_H
 
-int file_copy(const char *src, FILE **dest);
+int file_copy(const char *src, FILE **dest, long fpos);
 
 #endif

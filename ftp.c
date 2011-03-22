@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <sys/socket.h>
 
+#include "ftp.h"
 #include "util.h"
 #include "output.h"
 
@@ -65,12 +66,14 @@ char *ftp_readline(int sock)
 	return line;
 }
 
-int ftp_RETR(int sock, const char *fname, FILE **out)
+int ftp_RETR(int sock, const char *fname, FILE **out, long fpos)
 {
 	char port[8], host[3 * 4 + 3 + 1] /* xxx.xxx.xxx.xxx */;
 	char *line, *ident;
 	size_t size;
 	int i, h[4], p[2];
+
+	(void)fpos;
 
 #define FTP_READLINE(b) if(!(line = ftp_readline(b))) return 1
 
