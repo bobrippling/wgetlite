@@ -5,7 +5,7 @@
 
 long mstime(void);
 char *strdup(const char *s);
-
+FILE *fdup(FILE *f, char *mode);
 
 /* socket util */
 

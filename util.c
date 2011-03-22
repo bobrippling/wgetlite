@@ -26,10 +26,19 @@ long mstime()
 
 char *strdup(const char *s)
 {
-	char *d = malloc(strlen(s) + 1);
-	if(d)
-		strcpy(d, s);
+	unsigned int siz = strlen(s) + 1;
+	char *d = malloc(siz);
+	if(!d){
+		fprintf(stderr, "Couldn't allocate %ud bytes\n", siz);
+		exit(1);
+	}
+	strcpy(d, s);
 	return d;
+}
+
+FILE *fdup(FILE *f, char *mode)
+{
+	return fdopen(fileno(f), mode);
 }
 
 char *readline(int sock)
@@ -88,8 +97,8 @@ int dial(const char *host, const char *port)
 	hints.ai_socktype = SOCK_STREAM;
 
 	if((last_err = getaddrinfo(host, port, &hints, &list))){
-		fprintf(stderr, "getaddrinfo(): %s\n", gai_strerror(last_err));
-		return 1;
+		fprintf(stderr, "getaddrinfo(): \"%s:%s\": %s\n", host, port, gai_strerror(last_err));
+		return -1;
 	}
 
 
