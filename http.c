@@ -153,11 +153,11 @@ int http_GET_recv(int sock, FILE **f, const char *fname)
 	len = 0;
 	if((slen = http_GET_find_line(lines, "Content-Length: ")))
 		if(sscanf(slen, "%zu", &len) == 1)
-			output_err(OUT_INFO, "HTTP: Content-length: %ld", len);
+			output_err(OUT_INFO, "HTTP: Content-Length: %ld", len);
 		else
-			output_err(OUT_WARN, "HTTP Content-length unparseable");
+			output_err(OUT_WARN, "HTTP Content-Length unparseable");
 	else
-		output_err(OUT_INFO, "HTTP: No Content-length header");
+		output_err(OUT_INFO, "HTTP: No Content-Length header");
 
 	http_free_lines(lines);
 
