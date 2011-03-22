@@ -2,6 +2,8 @@
 #include <string.h>
 #include <errno.h>
 
+#include "output.h"
+
 int file_copy(const char *src, FILE **pdest)
 {
 	FILE *in = fopen(src, "r"), *dest = *pdest;
@@ -9,18 +11,18 @@ int file_copy(const char *src, FILE **pdest)
 	size_t nread;
 
 	if(!in){
-		fprintf(stderr, "open: %s: %s\n", src, strerror(errno));
+		output_err(OUT_ERR, "open: %s: %s", src, strerror(errno));
 		return 1;
 	}
 
 	while((nread = fread(buffer, 1, sizeof buffer, in)))
 		if(fwrite(buffer, 1, nread, dest) != nread){
-			fprintf(stderr, "write: %s\n", strerror(errno));
+			output_err(OUT_ERR, "write: %s", strerror(errno));
 			goto bail;
 		}
 
 	if(ferror(in)){
-		fprintf(stderr, "read: %s\n", strerror(errno));
+		output_err(OUT_ERR, "read: %s", strerror(errno));
 		goto bail;
 	}
 

@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 
 #include "util.h"
+#include "output.h"
 
 #define WRITE(fd, str) write(fd, str, strlen(str))
 
@@ -56,10 +57,8 @@ char *ftp_readline(int sock)
 			line = readline(sock);
 			if(!(hyphen = ftp_findhyphen(line)))
 				break;
-#ifdef VERBOSE
 			else
-				fprintf(stderr, "Server Info: \"%s\"\n", hyphen + 1);
-#endif
+				output_err(OUT_VERBOSE, "Server Info: \"%s\"", hyphen + 1);
 		}while(1);
 	}
 
@@ -82,7 +81,7 @@ int ftp_RETR(int sock, const char *fname, FILE **out)
 	if(!*ident++)
 		ident = line;
 
-	printf("FTP Server Ident: %s\n", ident);
+	output_err(OUT_INFO, "FTP Server Ident: %s", ident);
 	free(line);
 
 	WRITE(sock, "USER anonymous\r\n");
@@ -105,14 +104,14 @@ int ftp_RETR(int sock, const char *fname, FILE **out)
 
 		case FTP_PROCEED:
 			/* login success */
-			fputs("FTP Anonymous Login Success\n", stderr);
+			output_err(OUT_INFO, "FTP Anonymous Login Success");
 			break;
 
 
 		default:
 login_fail:
 			free(line);
-			fputs("FTP Anonymous Login Failed\n", stderr);
+			output_err(OUT_ERR, "FTP Anonymous Login Failed");
 			return 1;
 	}
 
@@ -127,10 +126,10 @@ login_fail:
 	FTP_READLINE(sock);
 	i = ftp_retcode(line);
 	if(i != FTP_FILE_STATUS){
-		fprintf(stderr, "FTP Warning - SIZE command failed (%s)\n", line);
+		output_err(OUT_WARN, "FTP Warning - SIZE command failed (%s)");
 		size = 0;
 	}else if(sscanf(line, "%*d %zu", &size) != 1){
-		fputs("Couldn't parse SIZE result, ignoring\n", stderr);
+		output_err(OUT_WARN, "Couldn't parse SIZE result, ignoring");
 		size = 0;
 	}
 	free(line);
@@ -140,7 +139,7 @@ login_fail:
 	FTP_READLINE(sock);
 	i = ftp_retcode(line);
 	if(i != FTP_ENTER_PASSIVE_MODE){
-		fprintf(stderr, "FTP PASV command failed (%d)\n", i);
+		output_err(OUT_ERR, "FTP PASV command failed (%d)", i);
 		return 1;
 	}
 
@@ -148,7 +147,7 @@ login_fail:
 	if(sscanf(line, "227 Entering Passive Mode (%d,%d,%d,%d,%d,%d).",
 				&h[0], &h[1], &h[2], &h[3], &p[0], &p[1]) != 6){
 		free(line);
-		fprintf(stderr, "FTP PASV reply unparsable\n");
+		output_err(OUT_ERR, "FTP PASV reply unparsable");
 		return 1;
 	}
 

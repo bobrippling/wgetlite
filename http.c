@@ -11,7 +11,9 @@
 
 #include "http.h"
 #include "progress.h"
+
 #include "util.h"
+#include "output.h"
 
 #include "wgetlite.h"
 
@@ -44,7 +46,7 @@ char **http_read_lines(int sock)
 	char **lines = malloc(nlines * sizeof(char *));
 
 	if(!lines){
-		perror("malloc()");
+		output_perror("malloc()");
 		return NULL;
 	}
 
@@ -73,7 +75,7 @@ char **http_read_lines(int sock)
 			nlines += 10;
 			new = realloc(lines, nlines * sizeof(char *));
 			if(!new){
-				perror("realloc()");
+				output_perror("realloc()");
 				http_free_lines(lines);
 				return NULL;
 			}
@@ -105,16 +107,16 @@ int http_GET_recv(int sock, FILE **f, const char *fname)
 		return 1;
 
 	if(sscanf(*lines, "HTTP/1.%*d %d", &http_code) != 1){
-		fputs("Warning: Couldn't parse HTTP response code\n", stderr);
+		output_err(OUT_WARN, "HTTP: Couldn't parse HTTP response code");
 		http_code = HTTP_OK;
 	}
 
-	if(global_cfg.verbose){
+	if(global_cfg.verbosity <= OUT_VERBOSE){
 		char **iter;
 		for(iter = lines; *iter; iter++)
-			fprintf(stderr, "HTTP: Header: %s\n", *iter);
+			output_err(OUT_VERBOSE, "HTTP: Header: %s", *iter);
 	}else
-		fprintf(stderr, "HTTP: reply: %s\n", *lines);
+		output_err(OUT_INFO, "HTTP: reply: %s", *lines);
 
 
 	if(400 <= http_code && http_code < 600)
@@ -131,17 +133,18 @@ int http_GET_recv(int sock, FILE **f, const char *fname)
 				if(location){
 					int ret;
 
-					fprintf(stderr, "HTTP: Location redirect, following - %s\n", location);
+					output_err(OUT_INFO, "HTTP: Location redirect, following - %s", location);
 
-					fclose(*f);
-					*f = NULL;
+					if(*f != stdout)
+						fclose(*f);
+					*f = NULL; /* tell the caller that we'll handle it */
 
 					ret = wget(location);
 					http_free_lines(lines);
 
 					return ret;
 				}else
-					fputs("Couldn't find Location header, continuing\n", stderr);
+					output_err(OUT_WARN, "Couldn't find Location header, continuing");
 
 				break;
 			}
@@ -150,11 +153,11 @@ int http_GET_recv(int sock, FILE **f, const char *fname)
 	len = 0;
 	if((slen = http_GET_find_line(lines, "Content-Length: ")))
 		if(sscanf(slen, "%zu", &len) == 1)
-			fprintf(stderr, "HTTP: Content-length: %ld\n", len);
+			output_err(OUT_INFO, "HTTP: Content-length: %ld", len);
 		else
-			fputs("HTTP Content-length unparseable\n", stderr);
+			output_err(OUT_WARN, "HTTP Content-length unparseable");
 	else
-		fputs("HTTP: no Content-length header\n", stderr);
+		output_err(OUT_WARN, "HTTP: no Content-length header");
 
 	http_free_lines(lines);
 
@@ -168,13 +171,14 @@ int http_GET(int sock, const char *file, FILE **out)
 {
 	char buffer[1024];
 
-	snprintf(buffer, sizeof buffer,
-			"GET %s HTTP/1.0\r\n\r\n", file);
+	snprintf(buffer, sizeof buffer, "GET %s HTTP/1.0\r\n\r\n", file);
+
+	/* TODO: printf("HTTP request sent, awaiting response..."); */
 
 	switch(write(sock, buffer, strlen(buffer))){
 		case  0:
 		case -1:
-			perror("write()");
+			output_perror("write()");
 			return 1;
 	}
 

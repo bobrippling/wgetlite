@@ -3,7 +3,8 @@
 
 struct cfg
 {
-	int verbose, partial, quiet;
+	int partial; /* TODO */
+	enum printlevel verbosity;
 	const char *out_fname;
 };
 

@@ -10,9 +10,11 @@
 #include "http.h"
 #include "file.h"
 #include "ftp.h"
-#include "wgetlite.h"
 
+#include "output.h"
 #include "util.h"
+
+#include "wgetlite.h"
 
 #ifndef PATH_MAX
 # define PATH_MAX 255
@@ -112,8 +114,17 @@ int wget(const char *url)
 			outname = NULL;
 		}else
 			outname = strdup(global_cfg.out_fname);
-	}else
-		outname = strdup(file);
+	}else{
+		char *the_last_slash_rated_pg_for_parental_guidance;
+
+		the_last_slash_rated_pg_for_parental_guidance = strrchr(file, '/');
+		if(the_last_slash_rated_pg_for_parental_guidance)
+			outname = strdup(the_last_slash_rated_pg_for_parental_guidance + 1);
+		else
+			outname = strdup(file);
+
+		/* TODO: urldecode outname (except for %3f) */
+	}
 
 
 	if(outname){
@@ -122,7 +133,7 @@ int wget(const char *url)
 
 		f = fopen(outname, "w");
 		if(!f){
-			fprintf(stderr, "open: \"%s\": %s\n", outname, strerror(errno));
+			output_err(OUT_ERR, "open: \"%s\": %s", outname, strerror(errno));
 			goto bail;
 		}
 	}else
@@ -145,7 +156,7 @@ int wget(const char *url)
 		ret = file_copy(file, &f);
 	else{
 		ret = 1;
-		fprintf(stderr, "unknown protocol: %s\n", proto);
+		output_err(OUT_ERR, "unknown protocol: %s", proto);
 	}
 
 	if(sock != -1)
@@ -153,11 +164,11 @@ int wget(const char *url)
 
 	if(f){
 		if(f != stdout && fclose(f)){
-			perror("close()");
+			output_perror("close()");
 			ret = 1;
 		}
-		if(!ret && !global_cfg.quiet)
-			fprintf(stderr, "Saved to %s%s%s\n",
+		if(!ret)
+			output_err(OUT_INFO, "Saved to %s%s%s",
 					outname ? "\"" : "",
 					outname ? outname : "stdout",
 					outname ? "\"" : "");
@@ -176,23 +187,36 @@ void sigh(int sig)
 	exit(sig);
 }
 
+void verbosity_change(int dir)
+{
+#define v global_cfg.verbosity
+	if(dir < 0 && v > 0)
+		v--;
+	else if(v < OUT_ERR)
+		v++;
+#undef v
+}
+
 int main(int argc, char **argv)
 {
 	int i;
 	char *url = NULL;
 
 	memset(&global_cfg, 0, sizeof global_cfg);
+	global_cfg.verbosity = OUT_INFO;
 
 	setbuf(stdout, NULL);
 
 	signal(SIGPIPE, sigh);
 
 #define ARG(x) !strcmp(argv[i], "-" x)
+#define verbosity_inc() verbosity_change(-1)
+#define verbosity_dec() verbosity_change(+1)
 
 	for(i = 1; i < argc; i++)
 		if(     ARG("c")) global_cfg.partial = 1;
-		else if(ARG("q")) global_cfg.quiet   = 1;
-		else if(ARG("v")) global_cfg.verbose = 1;
+		else if(ARG("q")) verbosity_dec();
+		else if(ARG("v")) verbosity_inc();
 
 		else if(ARG("O")){
 			if(!(global_cfg.out_fname = argv[++i]))

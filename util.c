@@ -11,8 +11,10 @@
 
 #include <sys/time.h>
 
-#include "util.h"
 #include "progress.h"
+
+#include "util.h"
+#include "output.h"
 
 #define BSIZ 1024
 
@@ -29,7 +31,7 @@ char *strdup(const char *s)
 	unsigned int siz = strlen(s) + 1;
 	char *d = malloc(siz);
 	if(!d){
-		fprintf(stderr, "Couldn't allocate %ud bytes\n", siz);
+		output_err(OUT_ERR, "Couldn't allocate %ud bytes", siz);
 		exit(1);
 	}
 	strcpy(d, s);
@@ -49,10 +51,10 @@ char *readline(int sock)
 #define RECV(len, flags) \
 	switch(recv(sock, buffer, len, flags)){ \
 		case -1: \
-			perror("recv()"); \
+			output_perror("recv()"); \
 			return NULL; \
 		case  0: /* unexpected here - need \r\n\r\n */ \
-			fputs("premature EOF\n", stderr); \
+			output_err(OUT_ERR, "premature EOF"); \
 			return NULL; \
 	}
 
@@ -66,7 +68,7 @@ char *readline(int sock)
 		return strdup(buffer);
 	}
 
-	fputs("util::readline(): buffer too small\n", stderr);
+	output_err(OUT_ERR, "util::readline(): buffer too small");
 	return NULL;
 }
 
@@ -81,8 +83,7 @@ int fdprintf(int fd, const char *fmt, ...)
 	va_end(l);
 
 	if(n >= sizeof(buffer))
-		fputs("fdprintf() warning: buffer not large enough - FIXME\n",
-				stderr);
+		output_err(OUT_ERR, "fdprintf() warning: buffer not large enough - FIXME");
 
 	return write(fd, buffer, n);
 }
@@ -96,12 +97,15 @@ int dial(const char *host, const char *port)
 	hints.ai_family   = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 
+	/* TODO: printf("Resolving %s..."); ... printf(" %d.%d.%d.%d\n"); */
+
 	if((last_err = getaddrinfo(host, port, &hints, &list))){
-		fprintf(stderr, "getaddrinfo(): \"%s:%s\": %s\n", host, port, gai_strerror(last_err));
+		output_err(OUT_ERR, "getaddrinfo(): \"%s:%s\": %s", host, port, gai_strerror(last_err));
 		return -1;
 	}
 
 
+	/* TODO: printf("Connectan to ..."); "printf("... connected.\n"); */
 	for(iter = list; iter; iter = iter->ai_next){
 		sock = socket(iter->ai_family, iter->ai_socktype, iter->ai_protocol);
 
@@ -144,7 +148,7 @@ int generic_transfer(int sock, FILE *out, const char *fname, size_t len)
 
 		switch((nread = recv(sock, buffer, sizeof buffer, 0))){
 			case -1:
-				perror("recv()");
+				output_perror("recv()");
 				RET(1);
 			case 0:
 				if(len){
@@ -161,7 +165,7 @@ int generic_transfer(int sock, FILE *out, const char *fname, size_t len)
 
 			default:
 				if(!fwrite(buffer, sizeof(buffer[0]), nread, out)){
-					perror("fwrite()");
+					output_perror("fwrite()");
 					RET(1);
 				}
 		}
