@@ -21,7 +21,7 @@
 
 #define STR_EQUALS(a, b) !strcmp(a, b)
 
-struct cfg global_cfg = { 0, NULL };
+struct cfg global_cfg;
 
 int proto_is_net(const char *proto)
 {
@@ -39,8 +39,13 @@ char *proto_default_port(const char *proto)
 	return port_http;
 }
 
-int parseurl(char *url,
-		char **phost, char **pfile,
+/*
+ * need protocol as well as port, since
+ * we might be doing
+ * wgetlite ftp://tim.com:80/path/to/file.txt
+ */
+int parseurl(const char *url,
+		char **phost,  char **pfile,
 		char **pproto, char **pport)
 {
 #define host  (*phost)
@@ -49,29 +54,34 @@ int parseurl(char *url,
 #define port  (*pport)
 
 	if((host = strstr(url, "://"))){
-		proto = url;
 		*host = '\0';
-		host += 3;
+		host  = strdup(host + 3);
+		proto = strdup(url);
 	}else{
-		host = url;
-		proto = "http";
+		host = strdup(url);
+		proto = strdup("http");
 	}
 
 	if(*host == '/'){
+		/* file://tim.txt */
 		file = host;
 		host = NULL;
 	}else{
 		file = strchr(host, '/');
-		if(!file){
-			fprintf(stderr, "need file (try \"/\")\n");
-			return 1;
+
+		if(!file)
+			file = strdup("/");
+		else{
+			char *slash = file;
+			file = strdup(file);
+			*slash = '\0';
 		}
 
 		if((port = strrchr(host, ':')))
 			*port++ = '\0';
 		else
 			port = proto_default_port(proto);
-		*file++ = '\0';
+		port = strdup(port);
 	}
 
 	return 0;
@@ -83,62 +93,52 @@ int parseurl(char *url,
 
 int wget(const char *url)
 {
-	FILE *f;
-	char *host, *file, *proto, *sport;
-	char *basename, *url_dup, *fullpath;
 	int sock, ret;
 
-	url_dup  = alloca(strlen(url) + 1);
-	fullpath = alloca(strlen(url) + 1);
-	strcpy(url_dup,  url);
-	strcpy(fullpath, url);
+	FILE *f = NULL;
+	char *outname;
 
-	if(parseurl(url_dup, &host, &file, &proto, &sport))
+	char *host, *file, *proto, *port;
+
+	char *urlcpy = alloca(strlen(url) + 1);
+
+	strcpy(urlcpy, url);
+
+	if(parseurl(url, &host, &file, &proto, &port))
 		return 1;
 
-	basename = strrchr(file, '/');
-	if(!basename++)
-		basename = file;
+	if(global_cfg.out_fname){
+		if(!strcmp(global_cfg.out_fname, "-")){
+			outname = NULL;
+		}else
+			outname = strdup(global_cfg.out_fname);
+	}else
+		outname = strdup(file);
 
-	if(!*basename)
-		basename = "index.html";
 
-#ifdef VERBOSE
-	printf("host: %s\nproto: %s\nport: %s\nfile: \"%s\"\noutput: \"%s\"\n",
-			host, proto, sport, file, basename);
-#endif
+	if(outname){
+		if(strlen(outname) > PATH_MAX)
+			outname[PATH_MAX - 1] = '\0';
 
-	if(global_cfg.out_fname)
-		basename = strdup(global_cfg.out_fname);
-	else
-		basename = strdup(basename);
+		f = fopen(outname, "w");
+		if(!f){
+			fprintf(stderr, "open: \"%s\": %s\n", outname, strerror(errno));
+			goto bail;
+		}
+	}else
+		f = stdout;
 
-	if(!basename){
-		perror("strdup()");
-		return 1;
-	}
-
-	if(strlen(basename) > PATH_MAX)
-		basename[PATH_MAX - 1] = '\0';
-
-	f = fopen(basename, "w");
-	if(!f){
-		fprintf(stderr, "open: \"%s\": %s\n", basename, strerror(errno));
-		free(basename);
-		return 1;
-	}
 
 	if(proto_is_net(proto)){
-		sock = dial(host, sport);
+		sock = dial(host, port);
 		if(sock == -1){
-			free(basename);
 			return 1;
 		}
 	}else
 		sock = -1;
 
 	if(!strcmp(proto, "http"))
-		ret = http_GET(sock, fullpath, &f);
+		ret = http_GET(sock, urlcpy, &f);
 	else if(!strcmp(proto, "ftp"))
 		ret = ftp_RETR(sock, file, &f);
 	else if(!strcmp(proto, "file"))
@@ -152,21 +152,27 @@ int wget(const char *url)
 		close(sock);
 
 	if(f){
-		if(fclose(f)){
+		if(f != stdout && fclose(f)){
 			perror("close()");
 			ret = 1;
 		}
-		if(!ret)
-			printf("saved to \"%s\"\n", basename);
+		if(!ret && !global_cfg.quiet)
+			fprintf(stderr, "Saved to %s%s%s\n",
+					outname ? "\"" : "",
+					outname ? outname : "stdout",
+					outname ? "\"" : "");
 	}
 
-	free(basename);
+	free(outname);
 	return ret;
+bail:
+	/* TODO: free */
+	return 1;
 }
 
 void sigh(int sig)
 {
-	puts("we get signal!");
+	fputs("we get signal!\n", stderr);
 	exit(sig);
 }
 
@@ -175,21 +181,29 @@ int main(int argc, char **argv)
 	int i;
 	char *url = NULL;
 
+	memset(&global_cfg, 0, sizeof global_cfg);
+
 	setbuf(stdout, NULL);
 
 	signal(SIGPIPE, sigh);
 
+#define ARG(x) !strcmp(argv[i], "-" x)
+
 	for(i = 1; i < argc; i++)
-		if(!strcmp(argv[i], "-v"))
-			global_cfg.verbose = 1;
-		else if(!strcmp(argv[i], "-O")){
+		if(     ARG("c")) global_cfg.partial = 1;
+		else if(ARG("q")) global_cfg.quiet   = 1;
+		else if(ARG("v")) global_cfg.verbose = 1;
+
+		else if(ARG("O")){
 			if(!(global_cfg.out_fname = argv[++i]))
 				goto usage;
-		}else if(!url)
+
+		}else if(!url){
 			url = argv[i];
-		else{
+
+		}else{
 		usage:
-			fprintf(stderr, "Usage: %s [-v] [-O file] url\n", *argv);
+			fprintf(stderr, "Usage: %s [-v] [-q] [-c] [-O file] url\n", *argv);
 			return 1;
 		}
 

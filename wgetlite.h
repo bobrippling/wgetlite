@@ -3,7 +3,7 @@
 
 struct cfg
 {
-	int verbose;
+	int verbose, partial, quiet;
 	const char *out_fname;
 };
 
