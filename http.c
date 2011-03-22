@@ -157,7 +157,7 @@ int http_GET_recv(int sock, FILE **f, const char *fname)
 		else
 			output_err(OUT_WARN, "HTTP Content-length unparseable");
 	else
-		output_err(OUT_WARN, "HTTP: no Content-length header");
+		output_err(OUT_INFO, "HTTP: No Content-length header");
 
 	http_free_lines(lines);
 
