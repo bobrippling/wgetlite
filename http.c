@@ -144,7 +144,7 @@ int http_recv(int sock, FILE **f, const char *fname, size_t fpos)
 
 					return ret;
 				}else
-					output_err(OUT_WARN, "Couldn't find Location header, continuing");
+					output_err(OUT_WARN, "HTTP: Couldn't find Location header, continuing");
 
 				break;
 			}
