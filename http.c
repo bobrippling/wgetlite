@@ -176,9 +176,11 @@ int http_GET(int sock, const char *file, const char *host, FILE **out, size_t fp
 	snprintf(buffer, sizeof buffer,
 			"GET %s HTTP/1.1\r\nHost: %s\r\n\r\n",
 			file, host);
-
 	/* TODO: User-Agent: wgetlite/0.9 */
+
+
 	if(global_cfg.partial && fpos){
+		/* FIXME: make sure we have "Accept-Ranges: bytes" header first? */
 		char *append = strchr(buffer, '\0');
 		append -= 2;
 
