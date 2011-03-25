@@ -69,13 +69,15 @@ char *ftp_readline(int sock)
 	return line;
 }
 
-int ftp_RETR(int sock, const char *fname, FILE **out, size_t fpos)
+int ftp_RETR(int sock, const char *fname, const char *host_url, FILE **out, size_t fpos)
 {
 	extern struct cfg global_cfg;
 	char port[8], host[3 * 4 + 3 + 1] /* xxx.xxx.xxx.xxx */;
 	char *line, *ident;
 	size_t size;
 	int i, h[4], p[2];
+
+	(void)host_url;
 
 #define FTP_READLINE(b) if(!(line = ftp_readline(b))) return 1
 

@@ -155,7 +155,7 @@ int http_recv(int sock, FILE **f, const char *fname, size_t fpos)
 		if(sscanf(slen, "%zu", &len) == 1)
 			output_err(OUT_INFO, "HTTP: Content-Length: %ld", len);
 		else
-			output_err(OUT_WARN, "HTTP Content-Length unparseable");
+			output_err(OUT_WARN, "HTTP: Content-Length unparseable");
 	else
 		output_err(OUT_INFO, "HTTP: No Content-Length header");
 
@@ -167,12 +167,15 @@ die:
 	return 1;
 }
 
-int http_GET(int sock, const char *file, FILE **out, size_t fpos)
+int http_GET(int sock, const char *file, const char *host, FILE **out, size_t fpos)
 {
 	extern struct cfg global_cfg;
 	char buffer[1024];
 
-	snprintf(buffer, sizeof buffer, "GET %s HTTP/1.0\r\n\r\n", file);
+	/* FIXME: check length */
+	snprintf(buffer, sizeof buffer,
+			"GET %s HTTP/1.1\r\nHost: %s\r\n\r\n",
+			file, host);
 
 	/* TODO: User-Agent: wgetlite/0.9 */
 	if(global_cfg.partial && fpos){
@@ -183,6 +186,8 @@ int http_GET(int sock, const char *file, FILE **out, size_t fpos)
 				"Range: bytes=%ld-\r\n\r\n", fpos);
 	}
 
+
+	output_err(OUT_VERBOSE, "HTTP: Request: GET %s HTTP/1.1 (Host: %s)", file, host);
 
 	/* TODO: printf("HTTP request sent, awaiting response..."); */
 
