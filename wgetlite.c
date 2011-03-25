@@ -24,6 +24,8 @@
 #define STR_EQUALS(a, b) !strcmp(a, b)
 
 struct cfg global_cfg;
+const char *argv0;
+
 
 int proto_is_net(const char *proto)
 {
@@ -71,12 +73,12 @@ int parseurl(const char *url,
 	}else{
 		file = strchr(host, '/');
 
-		if(!file)
-			file = strdup("/");
-		else{
+		if(file){
 			char *slash = file;
 			file = strdup(file);
 			*slash = '\0';
+		}else{
+			file = strdup("/");
 		}
 
 		if((port = strrchr(host, ':')))
@@ -103,9 +105,12 @@ int wget(const char *url)
 
 	char *host, *file, *proto, *port;
 
-	char *urlcpy = alloca(strlen(url) + 1);
+	char *urlcpy = alloca(strlen(url) + 2);
 
 	strcpy(urlcpy, url);
+
+	if(!strchr(urlcpy, '/'))
+		strcat(urlcpy, "/");
 
 	if(parseurl(url, &host, &file, &proto, &port))
 		return 1;
@@ -164,9 +169,9 @@ int wget(const char *url)
 
 	/* TODO: function pointer */
 	if(!strcmp(proto, "http"))
-		ret = http_GET(sock, urlcpy, &f, fpos);
+		ret = http_GET(sock, file, host, &f, fpos);
 	else if(!strcmp(proto, "ftp"))
-		ret = ftp_RETR(sock, file, &f, fpos);
+		ret = ftp_RETR(sock, file, host, &f, fpos);
 	else if(!strcmp(proto, "file"))
 		ret = file_copy(file, &f, fpos);
 	else{
@@ -230,6 +235,8 @@ int main(int argc, char **argv)
 {
 	int i;
 	char *url = NULL;
+
+	argv0 = *argv;
 
 	memset(&global_cfg, 0, sizeof global_cfg);
 	global_cfg.verbosity = OUT_INFO;

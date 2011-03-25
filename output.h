@@ -11,6 +11,6 @@ enum printlevel
 
 void output_err(enum printlevel, const char *, ...);
 /*void output_perror(const char *);*/
-#define output_perror(s) fprintf(stderr, s ": %s\n", strerror(errno))
+#define output_perror(s) output_err(OUT_ERR, s ": %s", strerror(errno))
 
 #endif
