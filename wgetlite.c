@@ -141,6 +141,12 @@ int wget(const char *url)
 			outname = strdup("index.html");
 		}
 
+		/* if not explicitly specified, check for file overwrites */
+		if(!global_cfg.out_fname && !access(outname, F_OK)){
+			output_err(OUT_ERR, "%s: file exists", outname);
+			goto bail;
+		}
+
 		f = fopen(outname, global_cfg.partial ? "a" : "w");
 		if(!f){
 			output_err(OUT_ERR, "open: \"%s\": %s", outname, strerror(errno));
