@@ -123,6 +123,13 @@ int http_recv(int sock, FILE **f, const char *fname, size_t fpos)
 		goto die;
 	else
 		switch(http_code){
+			case HTTP_OK:
+				if(global_cfg.partial){
+					/* FIXME: rewind the file */
+					output_err(OUT_ERR, "HTTP Bug - file needs cutting down");
+				}
+				break;
+
 			case HTTP_MOVED_PERMANENTLY:
 			case HTTP_FOUND:
 			case HTTP_SEE_OTHER:
