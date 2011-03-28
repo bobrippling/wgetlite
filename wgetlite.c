@@ -7,14 +7,15 @@
 
 #include <unistd.h>
 
+#include "output.h"
+#include "wgetlite.h"
+
 #include "http.h"
 #include "file.h"
 #include "ftp.h"
 
-#include "output.h"
 #include "util.h"
-
-#include "wgetlite.h"
+#include "term.h"
 
 #ifndef PATH_MAX
 # define PATH_MAX 255
@@ -97,12 +98,9 @@ int parseurl(const char *url,
 
 int wget(const char *url)
 {
+	wgetfunc *wgetfptr;
 	int sock, ret;
-
-	FILE *f = NULL;
-	size_t fpos = 0;
 	char *outname;
-
 	char *host, *file, *proto, *port;
 
 	char *urlcpy = alloca(strlen(url) + 2);
@@ -114,6 +112,16 @@ int wget(const char *url)
 
 	if(parseurl(url, &host, &file, &proto, &port))
 		return 1;
+
+	if(     !strcmp(proto, "http")) wgetfptr = http_GET;
+	else if(!strcmp(proto, "ftp"))  wgetfptr = ftp_RETR;
+	else if(!strcmp(proto, "file")) wgetfptr = file_copy;
+	else{
+		/* FIXME: valgrind test */
+		ret = 1;
+		output_err(OUT_ERR, "unknown protocol: %s", proto);
+		goto bail;
+	}
 
 	if(global_cfg.out_fname){
 		if(!strcmp(global_cfg.out_fname, "-")){
@@ -142,7 +150,9 @@ int wget(const char *url)
 		}
 
 		/* if not explicitly specified, check for file overwrites */
-		if(!global_cfg.out_fname && !access(outname, F_OK)){
+		if(!global_cfg.out_fname &&
+				!global_cfg.partial &&
+				!access(outname, F_OK)){
 			output_err(OUT_ERR, "%s: file exists", outname);
 			goto bail;
 		}
@@ -161,8 +171,7 @@ int wget(const char *url)
 			}
 			fpos = pos;
 		}
-	}else
-		f = stdout;
+	}
 
 
 	if(proto_is_net(proto)){
@@ -173,17 +182,8 @@ int wget(const char *url)
 	}else
 		sock = -1;
 
-	/* TODO: function pointer */
-	if(!strcmp(proto, "http"))
-		ret = http_GET(sock, file, host, &f, fpos);
-	else if(!strcmp(proto, "ftp"))
-		ret = ftp_RETR(sock, file, host, &f, fpos);
-	else if(!strcmp(proto, "file"))
-		ret = file_copy(file, &f, fpos);
-	else{
-		ret = 1;
-		output_err(OUT_ERR, "unknown protocol: %s", proto);
-	}
+
+	ret = wgetfptr(&finfo);
 
 fin:
 	if(sock != -1)
@@ -249,16 +249,20 @@ int main(int argc, char **argv)
 
 	setbuf(stdout, NULL);
 
-	signal(SIGPIPE, sigh);
+	signal(SIGPIPE,  sigh);
+	signal(SIGWINCH, term_winch);
 
 #define ARG(x) !strcmp(argv[i], "-" x)
 #define verbosity_inc() verbosity_change(-1)
 #define verbosity_dec() verbosity_change(+1)
 
+	global_cfg.prog_dot = !isatty(1);
+
 	for(i = 1; i < argc; i++)
 		if(     ARG("c")) global_cfg.partial = 1;
 		else if(ARG("q")) verbosity_dec();
 		else if(ARG("v")) verbosity_inc();
+		else if(ARG("d")) global_cfg.prog_dot = 1;
 
 		else if(ARG("O")){
 			if(!(global_cfg.out_fname = argv[++i]))
@@ -269,7 +273,7 @@ int main(int argc, char **argv)
 
 		}else{
 		usage:
-			fprintf(stderr, "Usage: %s [-v] [-q] [-c] [-O file] url\n", *argv);
+			fprintf(stderr, "Usage: %s [-v] [-q] [-d] [-c] [-O file] url\n", *argv);
 			return 1;
 		}
 
