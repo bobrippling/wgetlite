@@ -6,7 +6,7 @@
 
 #define CLR_TO_EOL "\x1b[K"
 #define PROGRESS_CAN_SHOW() (global_cfg.verbosity <= OUT_WARN)
-#define PROGRESS_TERMINAL() (global_cfg.prog_dot)
+#define PROGRESS_TERMINAL() (!global_cfg.prog_dot)
 
 extern struct cfg global_cfg;
 
