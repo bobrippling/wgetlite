@@ -246,5 +246,5 @@ bail:
 void wget_success(struct wgetfile *finfo)
 {
 	output_err(OUT_INFO, "Saved '%s' -> '%s'",
-			finfo->host_name, finfo->outname);
+			finfo->host_file, finfo->outname);
 }
