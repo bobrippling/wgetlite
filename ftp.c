@@ -133,7 +133,7 @@ login_fail:
 	FTP_READLINE();
 	i = ftp_retcode(line);
 	if(i != FTP_FILE_STATUS){
-		output_err(OUT_WARN, "FTP Warning - SIZE command failed (%s)");
+		output_err(OUT_WARN, "FTP Warning - SIZE command failed (%s)", line);
 		size = 0;
 	}else if(sscanf(line, "%*d %zu", &size) != 1){
 		output_err(OUT_WARN, "Couldn't parse SIZE result, ignoring");
