@@ -25,9 +25,13 @@ struct wgetfile
 typedef int wgetfunc(struct wgetfile *);
 
 int wget(const char *url);
+
 FILE *wget_open( struct wgetfile *, char *mode);
+FILE *wget_close_and_open(struct wgetfile *, FILE *, char *mode);
+
 int   wget_close(struct wgetfile *, FILE *);
 int   wget_close_if_empty(struct wgetfile *, FILE *);
+
 void  wget_success(struct wgetfile *);
 
 #endif

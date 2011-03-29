@@ -153,8 +153,11 @@ int generic_transfer(struct wgetfile *finfo, FILE *out, size_t len, size_t sofar
 					continue;
 
 				/* TODO: retry */
+				if(len && sofar == len)
+					goto end_of_stream;
 				output_perror("recv()");
 				RET(1);
+
 			case 0:
 end_of_stream:
 				if(len){

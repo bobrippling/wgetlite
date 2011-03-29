@@ -121,7 +121,7 @@ FILE *wget_open(struct wgetfile *finfo, char *mode)
 		return stdout;
 }
 
-int wget_close(struct wgetfile *finfo, FILE *f)
+int wget_close_verbose(struct wgetfile *finfo, FILE *f, int verbose)
 {
 	int ret = 0;
 
@@ -132,7 +132,8 @@ int wget_close(struct wgetfile *finfo, FILE *f)
 			fpos = 0;
 
 		if(f != stdout && fclose(f)){
-			output_perror("close()");
+			if(verbose)
+				output_perror("close()");
 			ret = 1;
 		}
 
@@ -148,11 +149,22 @@ int wget_close(struct wgetfile *finfo, FILE *f)
 	return ret;
 }
 
+int wget_close(struct wgetfile *finfo, FILE *f)
+{
+	return wget_close_verbose(finfo, f, 1);
+}
+
 int wget_close_if_empty(struct wgetfile *finfo, FILE *f)
 {
 	if(ftell(f) > 0)
 		return 0;
 	return wget_close(finfo, f);
+}
+
+FILE *wget_close_and_open(struct wgetfile *finfo, FILE *f, char *mode)
+{
+	wget_close_verbose(finfo, f, 0);
+	return wget_open(finfo, mode);
 }
 
 int wget(const char *url)

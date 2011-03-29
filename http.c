@@ -101,10 +101,12 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 {
 	extern struct cfg global_cfg;
 	long pos;
-	char **lines = http_read_lines(finfo->sock);
-	char *slen;
+	char **lines;
+	char *hdr;
 	size_t len;
 	int http_code;
+
+	lines = http_read_lines(finfo->sock);
 
 	if(!lines)
 		return 1;
@@ -121,7 +123,25 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 	}else
 		output_err(OUT_INFO, "HTTP: reply: %s", *lines);
 
-	/* TODO: http_GET_find_line(lines, "Context-Disposition: ...") */
+
+	if(finfo->namemode == NAME_GUESS &&
+			(hdr = http_GET_find_line(lines, "Content-Disposition: "))){
+		char *name = strstr(hdr, "filename=\"");
+
+		if(name){
+			char *end;
+			name += 10;
+			end = strchr(name, '"');
+			if(end)
+				*end = '\0';
+			else
+				name = NULL;
+		}
+
+		output_err(OUT_INFO, "HTTP: Using server name: \"%s\"", name);
+		/* FIXME: relink to name */
+	}
+
 
 	if(400 <= http_code && http_code < 600)
 		goto die;
@@ -131,7 +151,7 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 				if(global_cfg.partial){
 					output_err(OUT_WARN, "HTTP: Partial transfer not supported (server)");
 					fclose(f);
-					f = wget_open(finfo, "w");
+					f = wget_close_and_open(finfo, f, "w");
 					if(!f)
 						goto die;
 				}
@@ -168,8 +188,8 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 		}
 
 	len = 0;
-	if((slen = http_GET_find_line(lines, "Content-Length: ")))
-		if(sscanf(slen, "%zu", &len) == 1)
+	if((hdr = http_GET_find_line(lines, "Content-Length: ")))
+		if(sscanf(hdr, "%zu", &len) == 1)
 			output_err(OUT_INFO, "HTTP: Content-Length: %ld", len);
 		else
 			output_err(OUT_WARN, "HTTP: Content-Length unparseable");
@@ -204,7 +224,10 @@ int http_GET(struct wgetfile *finfo)
 		return 1;
 
 	if(global_cfg.partial && (pos = ftell(f)) > 0){
-		/* FIXME: make sure we have "Accept-Ranges: bytes" header first? */
+		/*
+		 * no need to check for "Accept-Ranges: bytes" header
+		 * since we can check for 200-OK later on
+		 */
 		char *append = strchr(buffer, '\0');
 		append -= 2;
 
@@ -213,8 +236,6 @@ int http_GET(struct wgetfile *finfo)
 	}
 
 	output_err(OUT_VERBOSE, "HTTP: Request: GET %s HTTP/1.1 (Host: %s)", finfo->host_file, finfo->host_name);
-
-	/* TODO: printf("HTTP request sent, awaiting response..."); */
 
 	switch(write(finfo->sock, buffer, strlen(buffer))){
 		case  0:
