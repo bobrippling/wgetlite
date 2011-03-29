@@ -186,5 +186,8 @@ fin:
 		progress_fin(sofar, len);
 	else
 		progress_fin(0, 0);
+
+	if(!ret)
+		wget_success(finfo);
 	return ret;
 }

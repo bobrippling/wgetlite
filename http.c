@@ -172,6 +172,7 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 	return generic_transfer(finfo, f, len, ftell(f));
 die:
 	http_free_lines(lines);
+	wget_close_if_empty(finfo, f);
 	return 1;
 }
 

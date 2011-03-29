@@ -149,6 +149,13 @@ int wget_close(struct wgetfile *finfo, FILE *f)
 	return ret;
 }
 
+int wget_close_if_empty(struct wgetfile *finfo, FILE *f)
+{
+	if(ftell(f) > 0)
+		return 0;
+	return wget_close(finfo, f);
+}
+
 int wget(const char *url)
 {
 	extern struct cfg global_cfg;
@@ -161,6 +168,7 @@ int wget(const char *url)
 	char *urlcpy = alloca(strlen(url) + 2);
 
 	strcpy(urlcpy, url);
+	memset(&finfo, 0, sizeof finfo);
 
 	if(!strchr(urlcpy, '/'))
 		strcat(urlcpy, "/");
@@ -204,6 +212,7 @@ int wget(const char *url)
 	if(proto_is_net(proto)){
 		sock = dial(host, port);
 		if(sock == -1){
+			output_err(OUT_ERR, "connect to %s:%s: %s", host, port, strerror(errno));
 			return 1;
 		}
 	}else
@@ -232,4 +241,10 @@ fin:
 bail:
 	ret = 1;
 	goto fin;
+}
+
+void wget_success(struct wgetfile *finfo)
+{
+	output_err(OUT_INFO, "Saved '%s' -> '%s'",
+			finfo->host_name, finfo->outname);
 }
