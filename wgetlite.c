@@ -128,22 +128,21 @@ int wget_close(struct wgetfile *finfo, FILE *f)
 	if(f){
 		long fpos = ftell(f);
 
+		if(fpos == -1)
+			fpos = 0;
+
 		if(f != stdout && fclose(f)){
 			output_perror("close()");
 			ret = 1;
 		}
 
-		if(!ret)
-			output_err(OUT_INFO, "Saved to %s%s%s",
-					finfo->outname ? "\"" : "",
-					finfo->outname ? finfo->outname : "stdout",
-					finfo->outname ? "\"" : "");
-		else if(!fpos)
+		if(ret && !fpos)
+			remove(finfo->outname);
 			/*
-			 * Got a problem. So, if we wrote to the file,
+			 * Got a problem and didn't write to the file,
+			 * otherwise
 			 * leave it be for a -c operation, otherwise unlink it
 			 */
-			remove(finfo->outname);
 	}
 
 	return ret;
@@ -246,5 +245,6 @@ bail:
 void wget_success(struct wgetfile *finfo)
 {
 	output_err(OUT_INFO, "Saved '%s' -> '%s'",
-			finfo->host_file, finfo->outname);
+			finfo->host_file,
+			finfo->outname ? finfo->outname : "stdout");
 }

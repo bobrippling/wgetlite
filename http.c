@@ -100,6 +100,7 @@ char *http_GET_find_line(char **lines, char *line)
 int http_recv(struct wgetfile *finfo, FILE *f)
 {
 	extern struct cfg global_cfg;
+	long pos;
 	char **lines = http_read_lines(finfo->sock);
 	char *slen;
 	size_t len;
@@ -128,7 +129,7 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 		switch(http_code){
 			case HTTP_OK:
 				if(global_cfg.partial){
-					output_err(OUT_WARN, "HTTP: Partial transfer not supported");
+					output_err(OUT_WARN, "HTTP: Partial transfer not supported (server)");
 					fclose(f);
 					f = wget_open(finfo, "w");
 					if(!f)
@@ -177,7 +178,8 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 
 	http_free_lines(lines);
 
-	return generic_transfer(finfo, f, len, ftell(f));
+	pos = ftell(f);
+	return generic_transfer(finfo, f, len, pos == -1 ? 0 : pos);
 die:
 	http_free_lines(lines);
 	wget_close_if_empty(finfo, f);

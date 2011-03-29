@@ -17,6 +17,6 @@ enum printlevel
 
 void output_err(enum printlevel, const char *, ...) GCC_PRINTF_ATTRIB(2, 3);
 /*void output_perror(const char *);*/
-#define output_perror(s) output_err(OUT_ERR, s ": %s", strerror(errno))
+#define output_perror(s) output_err(OUT_ERR, "%s: %s", s, strerror(errno))
 
 #endif

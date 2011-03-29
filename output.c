@@ -12,7 +12,7 @@ void output_err(enum printlevel l, const char *fmt, ...)
 
 	if(l >= global_cfg.verbosity){
 		va_list l;
-		fprintf(stderr, "%s: ", argv0);
+		fprintf(stderr, "\r%s: ", argv0);
 		va_start(l, fmt);
 		vfprintf(stderr, fmt, l);
 		fputc('\n', stderr);

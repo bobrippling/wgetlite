@@ -146,29 +146,50 @@ int generic_transfer(struct wgetfile *finfo, FILE *out, size_t len, size_t sofar
 
 		switch((nread = recv(finfo->sock, buffer, sizeof buffer, 0))){
 			case -1:
+				if(errno == EINTR)
+					continue;
+
+				/* TODO: retry */
 				output_perror("recv()");
 				RET(1);
 			case 0:
+end_of_stream:
 				if(len){
 					if(sofar == len)
 						RET(0);
 					else{
-						/* FIXME: retry */
+						/* TODO: goto retry */
 						progress_incomplete();
 						RET(1);
 					}
 				}else
 					/* no length, assume we have the whole file */
 					RET(0);
+				/* unreachable */
 
 			default:
-				if(!fwrite(buffer, sizeof(buffer[0]), nread, out)){
+			{
+				int trunc = 0;
+
+				if(len && sofar + nread > len){
+					output_err(OUT_WARN, "too much data, truncating");
+					trunc = 1;
+					nread = len - sofar;
+					sofar = len;
+				}else
+					sofar += nread;
+
+				while(!fwrite(buffer, sizeof(buffer[0]), nread, out)){
+					if(errno == EINTR)
+						continue;
 					output_perror("fwrite()");
 					RET(1);
 				}
-		}
 
-		sofar += nread;
+				if(trunc)
+					goto end_of_stream;
+			}
+		}
 
 		t = mstime();
 		if(last_progress + 100 < t){
@@ -187,7 +208,9 @@ fin:
 	else
 		progress_fin(0, 0);
 
+	ret |= wget_close(finfo, out);
 	if(!ret)
 		wget_success(finfo);
+
 	return ret;
 }
