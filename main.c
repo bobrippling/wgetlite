@@ -55,9 +55,12 @@ int main(int argc, char **argv)
 		else if(ARG("v")) verbosity_inc();
 		else if(ARG("d")) global_cfg.prog_dot = 1;
 
-		else if(ARG("O")){
-			if(!(global_cfg.out_fname = argv[++i]))
-				goto usage;
+		else if(!strncmp(argv[i], "-O", 2)){
+			if(argv[i][2] == '\0'){
+				if(!(global_cfg.out_fname = argv[++i]))
+					goto usage;
+			}else
+				global_cfg.out_fname = argv[i] + 2;
 
 		}else if(!url){
 			url = argv[i];
