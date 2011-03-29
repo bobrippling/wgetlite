@@ -11,7 +11,6 @@
 #include "wgetlite.h"
 
 #include "http.h"
-#include "file.h"
 #include "ftp.h"
 
 #include "util.h"
@@ -23,10 +22,6 @@
 
 
 #define STR_EQUALS(a, b) !strcmp(a, b)
-
-struct cfg global_cfg;
-const char *argv0;
-
 
 int proto_is_net(const char *proto)
 {
@@ -96,8 +91,68 @@ int parseurl(const char *url,
 #undef port
 }
 
+FILE *wget_open(struct wgetfile *finfo, char *mode)
+{
+	if(finfo->outname){
+		extern struct cfg global_cfg;
+		FILE *ret;
+
+		if(strlen(finfo->outname) > PATH_MAX)
+			finfo->outname[PATH_MAX - 1] = '\0';
+		else if(!*finfo->outname){
+			free(finfo->outname);
+			finfo->outname = strdup("index.html");
+		}
+
+		/* if not explicitly specified, check for finfo->outname overwrites */
+		if(!global_cfg.out_fname &&
+				!global_cfg.partial &&
+				!access(finfo->outname, F_OK)){
+			output_err(OUT_ERR, "%s: file exists", finfo->outname);
+			return NULL;
+		}
+
+		ret = fopen(finfo->outname, mode ? mode : (global_cfg.partial ? "a" : "w"));
+		if(!ret)
+			output_err(OUT_ERR, "open: \"%s\": %s", finfo->outname, strerror(errno));
+
+		return ret;
+	}else
+		return stdout;
+}
+
+int wget_close(struct wgetfile *finfo, FILE *f)
+{
+	int ret = 0;
+
+	if(f){
+		long fpos = ftell(f);
+
+		if(f != stdout && fclose(f)){
+			output_perror("close()");
+			ret = 1;
+		}
+
+		if(!ret)
+			output_err(OUT_INFO, "Saved to %s%s%s",
+					finfo->outname ? "\"" : "",
+					finfo->outname ? finfo->outname : "stdout",
+					finfo->outname ? "\"" : "");
+		else if(!fpos)
+			/*
+			 * Got a problem. So, if we wrote to the file,
+			 * leave it be for a -c operation, otherwise unlink it
+			 */
+			remove(finfo->outname);
+	}
+
+	return ret;
+}
+
 int wget(const char *url)
 {
+	extern struct cfg global_cfg;
+	struct wgetfile finfo;
 	wgetfunc *wgetfptr;
 	int sock, ret;
 	char *outname;
@@ -115,7 +170,7 @@ int wget(const char *url)
 
 	if(     !strcmp(proto, "http")) wgetfptr = http_GET;
 	else if(!strcmp(proto, "ftp"))  wgetfptr = ftp_RETR;
-	else if(!strcmp(proto, "file")) wgetfptr = file_copy;
+	/*else if(!strcmp(proto, "file")) wgetfptr = file_copy;*/
 	else{
 		/* FIXME: valgrind test */
 		ret = 1;
@@ -128,6 +183,8 @@ int wget(const char *url)
 			outname = NULL;
 		}else
 			outname = strdup(global_cfg.out_fname);
+
+		finfo.namemode = NAME_FORCE;
 	}else{
 		char *the_last_slash_rated_pg_for_parental_guidance;
 
@@ -137,41 +194,11 @@ int wget(const char *url)
 		else
 			outname = strdup(file);
 
+		finfo.namemode = NAME_GUESS;
+
 		/* TODO: urldecode outname (except for %3f) */
 	}
 
-
-	if(outname){
-		if(strlen(outname) > PATH_MAX)
-			outname[PATH_MAX - 1] = '\0';
-		else if(!*outname){
-			free(outname);
-			outname = strdup("index.html");
-		}
-
-		/* if not explicitly specified, check for file overwrites */
-		if(!global_cfg.out_fname &&
-				!global_cfg.partial &&
-				!access(outname, F_OK)){
-			output_err(OUT_ERR, "%s: file exists", outname);
-			goto bail;
-		}
-
-		f = fopen(outname, global_cfg.partial ? "a" : "w");
-		if(!f){
-			output_err(OUT_ERR, "open: \"%s\": %s", outname, strerror(errno));
-			goto bail;
-		}
-
-		if(global_cfg.partial){
-			long pos = ftell(f);
-			if(pos == -1){
-				output_perror("ftell()");
-				goto bail;
-			}
-			fpos = pos;
-		}
-	}
 
 
 	if(proto_is_net(proto)){
@@ -183,31 +210,17 @@ int wget(const char *url)
 		sock = -1;
 
 
+	finfo.sock      = sock;
+	finfo.host_file = file;
+	finfo.host_name = host;
+	finfo.host_port = port;
+	finfo.outname   = outname;
+
 	ret = wgetfptr(&finfo);
 
 fin:
 	if(sock != -1)
 		close(sock);
-
-	if(f){
-		fpos = ftell(f);
-
-		if(f != stdout && fclose(f)){
-			output_perror("close()");
-			ret = 1;
-		}
-		if(!ret)
-			output_err(OUT_INFO, "Saved to %s%s%s",
-					outname ? "\"" : "",
-					outname ? outname : "stdout",
-					outname ? "\"" : "");
-		else if(!fpos)
-			/*
-			 * Got a problem. So, if we wrote to the file,
-			 * leave it be for a -c operation, otherwise unlink it
-			 */
-			remove(outname);
-	}
 
 	free(outname);
 	free(host);
@@ -219,66 +232,4 @@ fin:
 bail:
 	ret = 1;
 	goto fin;
-}
-
-void sigh(int sig)
-{
-	fputs("we get signal!\n", stderr);
-	exit(sig);
-}
-
-void verbosity_change(int dir)
-{
-#define v global_cfg.verbosity
-	if(dir < 0 && v > 0)
-		v--;
-	else if(v < OUT_ERR)
-		v++;
-#undef v
-}
-
-int main(int argc, char **argv)
-{
-	int i;
-	char *url = NULL;
-
-	argv0 = *argv;
-
-	memset(&global_cfg, 0, sizeof global_cfg);
-	global_cfg.verbosity = OUT_INFO;
-
-	setbuf(stdout, NULL);
-
-	signal(SIGPIPE,  sigh);
-	signal(SIGWINCH, term_winch);
-
-#define ARG(x) !strcmp(argv[i], "-" x)
-#define verbosity_inc() verbosity_change(-1)
-#define verbosity_dec() verbosity_change(+1)
-
-	global_cfg.prog_dot = !isatty(1);
-
-	for(i = 1; i < argc; i++)
-		if(     ARG("c")) global_cfg.partial = 1;
-		else if(ARG("q")) verbosity_dec();
-		else if(ARG("v")) verbosity_inc();
-		else if(ARG("d")) global_cfg.prog_dot = 1;
-
-		else if(ARG("O")){
-			if(!(global_cfg.out_fname = argv[++i]))
-				goto usage;
-
-		}else if(!url){
-			url = argv[i];
-
-		}else{
-		usage:
-			fprintf(stderr, "Usage: %s [-v] [-q] [-d] [-c] [-O file] url\n", *argv);
-			return 1;
-		}
-
-	if(!url)
-		goto usage;
-
-	return wget(url);
 }

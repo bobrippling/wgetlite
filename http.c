@@ -9,13 +9,13 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
+#include "output.h"
+#include "wgetlite.h"
+#include "util.h"
+
 #include "http.h"
 #include "progress.h"
 
-#include "util.h"
-#include "output.h"
-
-#include "wgetlite.h"
 
 #define HTTP_OK                    200
 
@@ -95,10 +95,10 @@ char *http_GET_find_line(char **lines, char *line)
 	return NULL;
 }
 
-int http_recv(int sock, FILE **f, const char *fname, size_t fpos)
+int http_recv(struct wgetfile *finfo, FILE *f)
 {
 	extern struct cfg global_cfg;
-	char **lines = http_read_lines(sock);
+	char **lines = http_read_lines(finfo->sock);
 	char *slen;
 	size_t len;
 	int http_code;
@@ -118,6 +118,7 @@ int http_recv(int sock, FILE **f, const char *fname, size_t fpos)
 	}else
 		output_err(OUT_INFO, "HTTP: reply: %s", *lines);
 
+	/* TODO: http_GET_find_line(lines, "Context-Disposition: ...") */
 
 	if(400 <= http_code && http_code < 600)
 		goto die;
@@ -125,8 +126,11 @@ int http_recv(int sock, FILE **f, const char *fname, size_t fpos)
 		switch(http_code){
 			case HTTP_OK:
 				if(global_cfg.partial){
-					/* FIXME: rewind the file */
-					output_err(OUT_ERR, "HTTP Bug - file needs cutting down");
+					output_err(OUT_WARN, "HTTP: Partial transfer not supported");
+					fclose(f);
+					f = wget_open(finfo, "w");
+					if(!f)
+						goto die;
 				}
 				break;
 
@@ -142,10 +146,7 @@ int http_recv(int sock, FILE **f, const char *fname, size_t fpos)
 
 					output_err(OUT_INFO, "HTTP: Location redirect, following - %s", location);
 
-					if(*f != stdout)
-						fclose(*f);
-					*f = NULL; /* tell the caller that we'll handle it */
-
+					wget_close(finfo, f);
 					ret = wget(location);
 					http_free_lines(lines);
 
@@ -168,44 +169,48 @@ int http_recv(int sock, FILE **f, const char *fname, size_t fpos)
 
 	http_free_lines(lines);
 
-	return generic_transfer(sock, *f, fname, len, fpos);
+	return generic_transfer(finfo, f, len, ftell(f));
 die:
 	http_free_lines(lines);
 	return 1;
 }
 
-int http_GET(int sock, const char *file, const char *host, FILE **out, size_t fpos)
+int http_GET(struct wgetfile *finfo)
 {
 	extern struct cfg global_cfg;
 	char buffer[1024];
+	FILE *f;
+	long pos;
 
 	/* FIXME: check length */
 	snprintf(buffer, sizeof buffer,
 			"GET %s HTTP/1.1\r\nHost: %s\r\n\r\n",
-			file, host);
+			finfo->host_file, finfo->host_name);
 	/* TODO: User-Agent: wgetlite/0.9 */
 
+	f = wget_open(finfo, NULL);
+	if(!f)
+		return 1;
 
-	if(global_cfg.partial && fpos){
+	if(global_cfg.partial && (pos = ftell(f)) > 0){
 		/* FIXME: make sure we have "Accept-Ranges: bytes" header first? */
 		char *append = strchr(buffer, '\0');
 		append -= 2;
 
 		snprintf(append, sizeof(buffer) - strlen(buffer) - 1,
-				"Range: bytes=%ld-\r\n\r\n", fpos);
+				"Range: bytes=%ld-\r\n\r\n", pos);
 	}
 
-
-	output_err(OUT_VERBOSE, "HTTP: Request: GET %s HTTP/1.1 (Host: %s)", file, host);
+	output_err(OUT_VERBOSE, "HTTP: Request: GET %s HTTP/1.1 (Host: %s)", finfo->host_file, finfo->host_name);
 
 	/* TODO: printf("HTTP request sent, awaiting response..."); */
 
-	switch(write(sock, buffer, strlen(buffer))){
+	switch(write(finfo->sock, buffer, strlen(buffer))){
 		case  0:
 		case -1:
 			output_perror("write()");
 			return 1;
 	}
 
-	return http_recv(sock, out, file, fpos);
+	return http_recv(finfo, f);
 }

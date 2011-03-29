@@ -2,8 +2,8 @@
 #include <stdarg.h>
 
 #include "output.h"
-#include "util.h"
 #include "wgetlite.h"
+#include "util.h"
 
 void output_err(enum printlevel l, const char *fmt, ...)
 {

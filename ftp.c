@@ -5,10 +5,10 @@
 #include <unistd.h>
 #include <sys/socket.h>
 
-#include "ftp.h"
-#include "util.h"
 #include "output.h"
 #include "wgetlite.h"
+#include "ftp.h"
+#include "util.h"
 
 #define WRITE(fd, str) write(fd, str, strlen(str))
 
@@ -26,14 +26,14 @@ int ftp_retcode(const char *s)
 	return -1;
 }
 
-int ftp_download(const char *host, const char *port, FILE *out,
-		const char *fname, size_t len, size_t offset)
+int ftp_download(struct wgetfile *finfo, FILE *out,
+		size_t len, size_t offset, char *host, char *port)
 {
 	int sock = dial(host, port);
 	if(sock == -1)
 		return 1;
 
-	return generic_transfer(sock, out, fname, len, offset);
+	return generic_transfer(finfo, out, len, offset);
 }
 
 char *ftp_findhyphen(char *line)
@@ -69,19 +69,19 @@ char *ftp_readline(int sock)
 	return line;
 }
 
-int ftp_RETR(int sock, const char *fname, const char *host_url, FILE **out, size_t fpos)
+int ftp_RETR(struct wgetfile *finfo)
 {
+	FILE *f;
+	long fpos;
 	extern struct cfg global_cfg;
 	char port[8], host[3 * 4 + 3 + 1] /* xxx.xxx.xxx.xxx */;
 	char *line, *ident;
 	size_t size;
 	int i, h[4], p[2];
 
-	(void)host_url;
+#define FTP_READLINE() if(!(line = ftp_readline(finfo->sock))) return 1
 
-#define FTP_READLINE(b) if(!(line = ftp_readline(b))) return 1
-
-	FTP_READLINE(sock);
+	FTP_READLINE();
 
 	/* some sort of id... */
 	ident = strchr(line, ' ');
@@ -91,16 +91,16 @@ int ftp_RETR(int sock, const char *fname, const char *host_url, FILE **out, size
 	output_err(OUT_INFO, "FTP Server Ident: %s", ident);
 	free(line);
 
-	WRITE(sock, "USER anonymous\r\n");
-	FTP_READLINE(sock);
+	WRITE(finfo->sock, "USER anonymous\r\n");
+	FTP_READLINE();
 
 	i = ftp_retcode(line);
 	free(line);
 
 	switch(i){
 		case FTP_NEED_PASS:
-			WRITE(sock, "PASS -wgetlite@\r\n");
-			FTP_READLINE(sock);
+			WRITE(finfo->sock, "PASS -wgetlite@\r\n");
+			FTP_READLINE();
 
 			i = ftp_retcode(line);
 			free(line);
@@ -125,12 +125,12 @@ login_fail:
 	/* successful login if we reach here */
 
 
-	WRITE(sock, "TYPE I\r\n");
-	FTP_READLINE(sock);
+	WRITE(finfo->sock, "TYPE I\r\n");
+	FTP_READLINE();
 	free(line); /* FIXME - check return code */
 
-	fdprintf(sock, "SIZE %s\r\n", fname);
-	FTP_READLINE(sock);
+	fdprintf(finfo->sock, "SIZE %s\r\n", finfo->host_file);
+	FTP_READLINE();
 	i = ftp_retcode(line);
 	if(i != FTP_FILE_STATUS){
 		output_err(OUT_WARN, "FTP Warning - SIZE command failed (%s)");
@@ -142,8 +142,8 @@ login_fail:
 	free(line);
 
 
-	WRITE(sock, "PASV\r\n");
-	FTP_READLINE(sock);
+	WRITE(finfo->sock, "PASV\r\n");
+	FTP_READLINE();
 	i = ftp_retcode(line);
 	if(i != FTP_ENTER_PASSIVE_MODE){
 		output_err(OUT_ERR, "FTP PASV command failed (%d)", i);
@@ -163,10 +163,14 @@ login_fail:
 	snprintf(port, sizeof port, "%d", (p[0] << 8) + p[1]);
 	snprintf(host, sizeof host, "%d.%d.%d.%d", h[0], h[1], h[2], h[3]);
 
-	if(global_cfg.partial && fpos){
+	f = wget_open(finfo, NULL);
+	if(!f)
+		return 1;
+
+	if(global_cfg.partial && (fpos = ftell(f)) > 0){
 		char *reply;
-		fdprintf(sock, "REST %ld\r\n", fpos); /* RESTart */
-		FTP_READLINE(sock);
+		fdprintf(finfo->sock, "REST %ld\r\n", fpos); /* RESTart */
+		FTP_READLINE();
 
 		i = ftp_retcode(line);
 		reply = strchr(line, ' ');
@@ -180,7 +184,7 @@ login_fail:
 		}
 	}
 
-	fdprintf(sock, "RETR %s\r\n", fname);
+	fdprintf(finfo->sock, "RETR %s\r\n", finfo->host_file);
 
-	return ftp_download(host, port, *out, fname, size, fpos);
+	return ftp_download(finfo, f, size, fpos, finfo->host_name, finfo->host_port);
 }

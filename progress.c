@@ -74,7 +74,7 @@ void progress_show(int this, int total)
 
 				this -= 10;
 
-				fputc(' ');
+				fputc(' ', stderr);
 			}
 		}
 	}

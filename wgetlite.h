@@ -11,13 +11,21 @@ struct cfg
 struct wgetfile
 {
 	int sock;
-	char *host_file, *host_name;
+	char *host_file, *host_name, *host_port;
 	char *outname;
-	long fpos;
+	enum
+	{
+		/* order = precedence */
+		NAME_FORCE, /* -O fname */
+		NAME_AUTH,  /* HTTP headers tell us the name, etc */
+		NAME_GUESS  /* $0 tim.com/hi.txt -> hi.txt */
+	} namemode;
 };
 
 typedef int wgetfunc(struct wgetfile *);
 
 int wget(const char *url);
+FILE *wget_open( struct wgetfile *, char *mode);
+int   wget_close(struct wgetfile *, FILE *);
 
 #endif

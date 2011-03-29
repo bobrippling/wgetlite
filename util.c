@@ -13,8 +13,9 @@
 
 #include "progress.h"
 
-#include "util.h"
 #include "output.h"
+#include "wgetlite.h"
+#include "util.h"
 
 #define BSIZ 1024
 
@@ -128,13 +129,11 @@ int dial(const char *host, const char *port)
 	return sock;
 }
 
-int generic_transfer(int sock, FILE *out, const char *fname, size_t len, size_t sofar)
+int generic_transfer(struct wgetfile *finfo, FILE *out, size_t len, size_t sofar)
 {
 #define RET(n) do{ ret = n; goto fin; }while(0)
 	int ret = 0;
 	long last_progress;
-
-	(void)fname;
 
 	last_progress = mstime();
 	if(!len)
@@ -145,7 +144,7 @@ int generic_transfer(int sock, FILE *out, const char *fname, size_t len, size_t 
 		char buffer[BSIZ];
 		long t;
 
-		switch((nread = recv(sock, buffer, sizeof buffer, 0))){
+		switch((nread = recv(finfo->sock, buffer, sizeof buffer, 0))){
 			case -1:
 				output_perror("recv()");
 				RET(1);
