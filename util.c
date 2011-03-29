@@ -49,21 +49,24 @@ char *readline(int sock)
 	char buffer[BSIZ];
 	char *pos;
 
-#define RECV(len, flags) \
-	switch(recv(sock, buffer, len, flags)){ \
-		case -1: \
-			output_perror("recv()"); \
-			return NULL; \
-		case  0: /* unexpected here - need \r\n\r\n */ \
-			output_err(OUT_ERR, "premature EOF"); \
-			return NULL; \
-	}
+#define RECV(len, flags, lbl_restart) \
+lbl_restart: \
+		switch(recv(sock, buffer, len, flags)){ \
+			case -1: \
+				if(errno == EINTR) \
+					goto lbl_restart; \
+				output_perror("recv()"); \
+				return NULL; \
+			case 0: /* unexpected here - need \r\n\r\n */ \
+				output_err(OUT_ERR, "premature EOF"); \
+				return NULL; \
+		}
 
-	RECV(sizeof buffer, MSG_PEEK);
+	RECV(sizeof buffer, MSG_PEEK, recv_1);
 
 	if((pos = strstr(buffer, "\r\n"))){
 		int len = pos - buffer + 2;
-		RECV(len, 0);
+		RECV(len, 0, recv_2);
 		*pos = '\0';
 
 		return strdup(buffer);
