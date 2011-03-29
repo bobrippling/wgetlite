@@ -29,6 +29,8 @@
 #define HTTP_SVR_ERR               500
 
 
+#define HTTP_MAX_REDIRECTS          20
+
 
 void http_free_lines(char **lines)
 {
@@ -142,8 +144,14 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 				/* redo the request with the new data */
 				const char *location = http_GET_find_line(lines, "Location: ");
 				if(location){
+					static int redirects = 0;
 					int ret;
 
+					if(redirects++ > HTTP_MAX_REDIRECTS){
+						output_err(OUT_ERR, "HTTP: Max Redirects (%d) Reached",
+								HTTP_MAX_REDIRECTS);
+						return 1;
+					}
 					output_err(OUT_INFO, "HTTP: Location redirect, following - %s", location);
 
 					wget_close(finfo, f);
