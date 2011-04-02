@@ -21,10 +21,13 @@ void sigh(int sig)
 void verbosity_change(int dir)
 {
 #define v global_cfg.verbosity
-	if(dir < 0 && v > 0)
-		v--;
-	else if(v < OUT_ERR)
-		v++;
+	if(dir < 0){
+		while(v > 0       && dir ++< 0)
+			v--;
+	}else{
+		while(v < OUT_ERR && dir --> 0)
+			v++;
+	}
 #undef v
 }
 
@@ -44,18 +47,24 @@ int main(int argc, char **argv)
 	signal(SIGWINCH, term_winch);
 
 #define ARG(x) !strcmp(argv[i], "-" x)
-#define verbosity_inc() verbosity_change(-1)
-#define verbosity_dec() verbosity_change(+1)
 
 	global_cfg.prog_dot = !isatty(1);
 
 	for(i = 1; i < argc; i++)
 		if(     ARG("c")) global_cfg.partial = 1;
-		else if(ARG("q")) verbosity_dec();
-		else if(ARG("v")) verbosity_inc();
 		else if(ARG("d")) global_cfg.prog_dot = 1;
 
-		else if(!strncmp(argv[i], "-O", 2)){
+		else if(argv[i][0] == '-' && (argv[i][1] == 'v' || argv[i][1] == 'q')){
+			int j = 1;
+			char *s;
+
+			for(s = argv[i] + 2; *s == argv[i][1]; s++, j++);
+			if(*s != '\0')
+				goto usage;
+
+			verbosity_change((argv[i][1] == 'v' ? -1 : +1) * j);
+
+		}else if(!strncmp(argv[i], "-O", 2)){
 			if(argv[i][2] == '\0'){
 				if(!(global_cfg.out_fname = argv[++i]))
 					goto usage;
