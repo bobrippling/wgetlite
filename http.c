@@ -177,6 +177,10 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 
 					wget_close(finfo, f);
 					wget_remove(finfo);
+
+					close(finfo->sock);
+					finfo->sock = -1;
+
 					ret = wget(location);
 					http_free_lines(lines);
 
