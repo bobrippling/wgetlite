@@ -176,6 +176,7 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 					output_err(OUT_INFO, "HTTP: Location redirect, following - %s", location);
 
 					wget_close(finfo, f);
+					wget_remove(finfo);
 					ret = wget(location);
 					http_free_lines(lines);
 

@@ -167,6 +167,11 @@ FILE *wget_close_and_open(struct wgetfile *finfo, FILE *f, char *mode)
 	return wget_open(finfo, mode);
 }
 
+int wget_remove(struct wgetfile *finfo)
+{
+	return remove(finfo->outname);
+}
+
 int wget(const char *url)
 {
 	extern struct cfg global_cfg;

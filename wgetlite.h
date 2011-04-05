@@ -32,6 +32,8 @@ FILE *wget_close_and_open(struct wgetfile *, FILE *, char *mode);
 int   wget_close(struct wgetfile *, FILE *);
 int   wget_close_if_empty(struct wgetfile *, FILE *);
 
+int   wget_remove(struct wgetfile *);
+
 void  wget_success(struct wgetfile *);
 
 #endif
