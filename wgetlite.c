@@ -23,12 +23,6 @@
 
 #define STR_EQUALS(a, b) !strcmp(a, b)
 
-int proto_is_net(const char *proto)
-{
-	return STR_EQUALS(proto, "http") ||
-		     STR_EQUALS(proto, "ftp");
-}
-
 char *proto_default_port(const char *proto)
 {
 	static char port_ftp[] = "21", port_http[] = "80";
@@ -225,15 +219,11 @@ int wget(const char *url)
 
 
 
-	if(proto_is_net(proto)){
-		sock = dial(host, port);
-		if(sock == -1){
-			output_err(OUT_ERR, "connect to %s:%s: %s", host, port, strerror(errno));
-			return 1;
-		}
-	}else
-		sock = -1;
-
+	sock = dial(host, port);
+	if(sock == -1){
+		output_err(OUT_ERR, "connect to %s:%s: %s", host, port, strerror(errno));
+		return 1;
+	}
 
 	finfo.sock      = sock;
 	finfo.host_file = file;
