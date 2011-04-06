@@ -6,6 +6,7 @@ struct cfg
 	int partial, prog_dot;
 	enum printlevel verbosity;
 	const char *out_fname;
+	FILE *logf;
 };
 
 struct wgetfile

@@ -11,11 +11,16 @@ void output_err(enum printlevel l, const char *fmt, ...)
 	extern const char *argv0;
 
 	if(l >= global_cfg.verbosity){
+		FILE *f = global_cfg.logf;
 		va_list l;
-		fprintf(stderr, "\r%s: ", argv0);
+
+		if(!f)
+			f = stderr;
+
+		fprintf(f, "\r%s: ", argv0);
 		va_start(l, fmt);
-		vfprintf(stderr, fmt, l);
-		fputc('\n', stderr);
+		vfprintf(f, fmt, l);
+		fputc('\n', f);
 		va_end(l);
 	}
 }

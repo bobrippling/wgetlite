@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <signal.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "output.h"
 #include "wgetlite.h"
@@ -35,6 +37,7 @@ int main(int argc, char **argv)
 {
 	int i;
 	char *url = NULL;
+	const char *log_fname = NULL;
 
 	argv0 = *argv;
 
@@ -64,21 +67,32 @@ int main(int argc, char **argv)
 
 			verbosity_change((argv[i][1] == 'v' ? -1 : +1) * j);
 
-		}else if(!strncmp(argv[i], "-O", 2)){
+		}else if(!strncasecmp(argv[i], "-o", 2)){
+			const char **ptr = argv[i][1] == 'o' ? &log_fname : &global_cfg.out_fname;
+
 			if(argv[i][2] == '\0'){
-				if(!(global_cfg.out_fname = argv[++i]))
+				if(!(*ptr = argv[++i]))
 					goto usage;
 			}else
-				global_cfg.out_fname = argv[i] + 2;
+				*ptr = argv[i] + 2;
 
 		}else if(!url){
 			url = argv[i];
 
 		}else{
 		usage:
-			fprintf(stderr, "Usage: %s [-v] [-q] [-d] [-c] [-O file] url\n", *argv);
+			fprintf(stderr, "Usage: %s [-v] [-q] [-d] [-c] [-o log] [-O file] url\n", *argv);
 			return 1;
 		}
+
+	if(log_fname){
+		if(!strcmp(log_fname, "-")){
+			global_cfg.logf = stdout;
+		}else if(!(global_cfg.logf = fopen(log_fname, "a"))){
+			output_err(OUT_ERR, "open log: %s: %s\n", log_fname, strerror(errno));
+			return 1;
+		}
+	}
 
 	if(!url)
 		goto usage;
