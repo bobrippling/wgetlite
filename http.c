@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <time.h>
@@ -89,9 +90,10 @@ char **http_read_lines(int sock)
 
 char *http_GET_find_line(char **lines, char *line)
 {
-	register int len = strlen(line);
+	int len = strlen(line);
+
 	for(; *lines; lines++){
-		if(!strncmp(*lines, line, len))
+		if(!strncasecmp(*lines, line, len))
 			return *lines + len;
 	}
 	return NULL;
@@ -150,7 +152,6 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 			case HTTP_OK:
 				if(global_cfg.partial){
 					output_err(OUT_WARN, "HTTP: Partial transfer not supported (server)");
-					fclose(f);
 					f = wget_close_and_open(finfo, f, "w");
 					if(!f)
 						goto die;
