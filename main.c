@@ -148,5 +148,5 @@ int main(int argc, char **argv)
 
 	atexit(cleanup);
 
-	return wget(url);
+	return wget(url, 0);
 }

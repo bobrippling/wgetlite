@@ -166,7 +166,7 @@ int wget_remove(struct wgetfile *finfo)
 	return remove(finfo->outname);
 }
 
-int wget(const char *url)
+int wget(const char *url, int redirect_no)
 {
 	extern struct cfg global_cfg;
 	struct wgetfile finfo;
@@ -179,6 +179,7 @@ int wget(const char *url)
 
 	strcpy(urlcpy, url);
 	memset(&finfo, 0, sizeof finfo);
+	finfo.redirect_no = redirect_no;
 
 	if(!strchr(urlcpy, '/'))
 		strcat(urlcpy, "/");

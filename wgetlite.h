@@ -13,6 +13,7 @@ struct cfg
 struct wgetfile
 {
 	int sock;
+	int redirect_no;
 	char *host_file, *host_name, *host_port;
 	char *outname;
 	enum
@@ -26,7 +27,7 @@ struct wgetfile
 
 typedef int wgetfunc(struct wgetfile *);
 
-int wget(const char *url);
+int wget(const char *url, int redirect_no);
 
 FILE *wget_open( struct wgetfile *, char *mode);
 FILE *wget_close_and_open(struct wgetfile *, FILE *, char *mode);
