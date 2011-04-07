@@ -219,11 +219,14 @@ int http_GET(struct wgetfile *finfo)
 	FILE *f;
 	long pos;
 
-	/* FIXME: check length */
+	/* FIXME: check return value */
 	snprintf(buffer, sizeof buffer,
-			"GET %s HTTP/1.1\r\nHost: %s\r\n\r\n",
+			"GET %s HTTP/1.1\r\n"
+			"Host: %s\r\n"
+			"Connection: close\r\n"
+			/* TODO: User-Agent: wgetlite/0.9 */
+			"\r\n",
 			finfo->host_file, finfo->host_name);
-	/* TODO: User-Agent: wgetlite/0.9 */
 
 	f = wget_open(finfo, NULL);
 	if(!f)
