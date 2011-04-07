@@ -6,6 +6,7 @@ struct cfg
 	int partial, prog_dot;
 	enum printlevel verbosity;
 	const char *out_fname;
+	const char *user_agent;
 	FILE *logf;
 };
 

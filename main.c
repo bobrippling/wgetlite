@@ -10,6 +10,8 @@
 #include "wgetlite.h"
 #include "term.h"
 
+#define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))
+
 struct cfg global_cfg;
 const char *argv0;
 
@@ -44,6 +46,16 @@ int main(int argc, char **argv)
 	int i;
 	char *url = NULL;
 	const char *log_fname = NULL;
+	const struct
+	{
+		char opt;
+		const char **ptr;
+		int can_empty;
+	} opts[] = {
+		{ 'o', &log_fname, 0 },
+		{ 'O', &global_cfg.out_fname, 0 },
+		{ 'U', &global_cfg.user_agent, 1 }
+	};
 
 	argv0 = *argv;
 
@@ -55,36 +67,67 @@ int main(int argc, char **argv)
 	signal(SIGPIPE,  sigh);
 	signal(SIGWINCH, term_winch);
 
-#define ARG(x) !strcmp(argv[i], "-" x)
-
 	global_cfg.prog_dot = !isatty(1);
+	global_cfg.user_agent = "wgetlite/0.9 (linux)";
 
 	for(i = 1; i < argc; i++)
-		if(     ARG("c")) global_cfg.partial = 1;
-		else if(ARG("d")) global_cfg.prog_dot = 1;
+		if(*argv[i] == '-')
+			switch(argv[i][1]){
+				case 'c':
+					global_cfg.partial = 1;
+					break;
 
-		else if(argv[i][0] == '-' && (argv[i][1] == 'v' || argv[i][1] == 'q')){
-			int j = 1;
-			char *s;
+				case 'd':
+					global_cfg.prog_dot = 1;
+					break;
 
-			for(s = argv[i] + 2; *s == argv[i][1]; s++, j++);
-			if(*s != '\0')
-				goto usage;
+				case 'v':
+				case 'q':
+				{
+					int j = 1;
+					char *s;
 
-			verbosity_change((argv[i][1] == 'v' ? -1 : +1) * j);
+					for(s = argv[i] + 2; *s == argv[i][1]; s++, j++);
+					if(*s != '\0')
+						goto usage;
 
-		}else if(!strncasecmp(argv[i], "-o", 2)){
-			const char **ptr = argv[i][1] == 'o' ? &log_fname : &global_cfg.out_fname;
+					verbosity_change((argv[i][1] == 'v' ? -1 : +1) * j);
+					break;
+				}
 
-			if(argv[i][2] == '\0'){
-				if(!(*ptr = argv[++i]))
-					goto usage;
-			}else
-				*ptr = argv[i] + 2;
+				default:
+				{
+					unsigned int j;
 
-		}else if(!url){
+					for(j = 0; j < ARRAY_LEN(opts); j++)
+						if(argv[i][1] == opts[j].opt)
+							break;
+
+					if(j < ARRAY_LEN(opts)){
+						if(argv[i][2] == '\0'){
+							if(!(*opts[j].ptr = argv[++i]) || *argv[i] == '\0'){
+								if(opts[j].can_empty)
+									*opts[j].ptr = NULL;
+								else
+									goto usage;
+							}
+						}else{
+							*opts[j].ptr = argv[i] + 2;
+							if(**opts[j].ptr == '\0'){
+								if(opts[j].can_empty)
+									*opts[j].ptr = NULL;
+								else
+									goto usage;
+							}
+						}
+					}else
+						goto usage;
+
+					break;
+				}
+			}
+		else if(!url){
 			url = argv[i];
-
 		}else{
 		usage:
 			fprintf(stderr, "Usage: %s [-v] [-q] [-d] [-c] [-o log] [-O file] url\n", *argv);

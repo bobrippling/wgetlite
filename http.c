@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <time.h>
+#include <stdarg.h>
 
 #include <unistd.h>
 
@@ -212,6 +213,19 @@ die:
 	return 1;
 }
 
+int http_header_append(char *buffer, size_t len, const char *fmt, ...)
+{
+	char *append = strchr(buffer, '\0');
+	va_list l;
+	int ret;
+
+	append -= 2;
+	va_start(l, fmt);
+	ret = vsnprintf(append, len - strlen(buffer) - 1, fmt, l);
+	va_end(l);
+	return ret;
+}
+
 int http_GET(struct wgetfile *finfo)
 {
 	extern struct cfg global_cfg;
@@ -224,7 +238,6 @@ int http_GET(struct wgetfile *finfo)
 			"GET %s HTTP/1.1\r\n"
 			"Host: %s\r\n"
 			"Connection: close\r\n"
-			/* TODO: User-Agent: wgetlite/0.9 */
 			"\r\n",
 			finfo->host_file, finfo->host_name);
 
@@ -232,20 +245,18 @@ int http_GET(struct wgetfile *finfo)
 	if(!f)
 		return 1;
 
-	if(global_cfg.partial && (pos = ftell(f)) > 0){
+	if(global_cfg.partial && (pos = ftell(f)) > 0)
+		http_header_append(buffer, sizeof(buffer), "Range: bytes=%ld-\r\n\r\n", pos);
 		/*
 		 * no need to check for "Accept-Ranges: bytes" header
 		 * since we can check for 200-OK later on
 		 */
-		char *append = strchr(buffer, '\0');
-		append -= 2;
 
-		snprintf(append, sizeof(buffer) - strlen(buffer) - 1,
-				"Range: bytes=%ld-\r\n\r\n", pos);
-	}
+	if(global_cfg.user_agent)
+		http_header_append(buffer, sizeof(buffer), "User-Agent: %s\r\n\r\n", global_cfg.user_agent);
+
 
 	output_err(OUT_VERBOSE, "HTTP: Request: GET %s HTTP/1.1 (Host: %s)", finfo->host_file, finfo->host_name);
-
 	switch(write(finfo->sock, buffer, strlen(buffer))){
 		case  0:
 		case -1:
