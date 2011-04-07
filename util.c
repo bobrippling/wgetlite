@@ -58,7 +58,7 @@ lbl_restart: \
 				output_perror("recv()"); \
 				return NULL; \
 			case 0: /* unexpected here - need \r\n\r\n */ \
-				output_err(OUT_ERR, "premature EOF"); \
+				output_err(OUT_ERR, "premature end of stream"); \
 				return NULL; \
 		}
 
