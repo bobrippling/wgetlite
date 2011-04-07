@@ -29,11 +29,17 @@ int ftp_retcode(const char *s)
 int ftp_download(struct wgetfile *finfo, FILE *out,
 		size_t len, size_t offset, char *host, char *port)
 {
+	const int oldsock = finfo->sock;
 	int sock = dial(host, port);
+	int ret;
+
 	if(sock == -1)
 		return 1;
 
-	return generic_transfer(finfo, out, len, offset);
+	finfo->sock = sock;
+	ret = generic_transfer(finfo, out, len, offset);
+	close(oldsock);
+	return ret;
 }
 
 char *ftp_findhyphen(char *line)
@@ -180,6 +186,7 @@ login_fail:
 
 		if(i != FTP_REQ_FILE_PENDING){
 			output_err(OUT_ERR, "FTP REST failed");
+			/* FIXME: truncate file */
 			return 1;
 		}
 	}
