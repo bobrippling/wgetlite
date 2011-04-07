@@ -78,7 +78,7 @@ char *ftp_readline(int sock)
 int ftp_RETR(struct wgetfile *finfo)
 {
 	FILE *f;
-	long fpos;
+	long fpos = 0;
 	extern struct cfg global_cfg;
 	char port[8], host[3 * 4 + 3 + 1] /* xxx.xxx.xxx.xxx */;
 	char *line, *ident;
@@ -193,5 +193,5 @@ login_fail:
 
 	fdprintf(finfo->sock, "RETR %s\r\n", finfo->host_file);
 
-	return ftp_download(finfo, f, size, fpos, finfo->host_name, finfo->host_port);
+	return ftp_download(finfo, f, size, fpos, host, port);
 }
