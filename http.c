@@ -57,16 +57,10 @@ char **http_read_lines(int sock)
 	lines[0] = NULL;
 
 	do{
-		char *r;
-
 		if(!(lines[curline] = readline(sock))){
 			http_free_lines(lines);
 			return NULL;
 		}
-
-		r = strchr(lines[curline], '\r');
-		if(r)
-			*r = '\0';
 
 		if(!*lines[curline]){
 			free(lines[curline]);
@@ -114,8 +108,8 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 	if(!lines)
 		return 1;
 
-	if(sscanf(*lines, "HTTP/1.%*d %d", &http_code) != 1){
-		output_err(OUT_WARN, "HTTP: Couldn't parse HTTP response code");
+	if(sscanf(*lines, "HTTP/1.%*d %d ", &http_code) != 1){
+		output_err(OUT_WARN, "HTTP: Warning: Couldn't parse HTTP response code");
 		http_code = HTTP_OK;
 	}
 

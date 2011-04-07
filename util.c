@@ -64,10 +64,14 @@ lbl_restart: \
 
 	RECV(sizeof buffer, MSG_PEEK, recv_1);
 
-	if((pos = strstr(buffer, "\r\n"))){
-		int len = pos - buffer + 2;
+	if((pos = strchr(buffer, '\n'))){
+		int len = pos - buffer + 1;
 		RECV(len, 0, recv_2);
-		*pos = '\0';
+
+		if(pos > buffer && pos[-1] == '\r')
+			pos[-1] = '\0';
+		else
+			*pos = '\0'; /* just \n, not \r\n, deal with it */
 
 		return strdup(buffer);
 	}
