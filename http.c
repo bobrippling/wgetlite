@@ -161,15 +161,27 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 				/* redo the request with the new data */
 				const char *location = http_GET_find_line(lines, "Location: ");
 				if(location){
-					static int redirects = 0;
+					char *to;
 					int ret;
+					int len = strlen(location) + strlen(finfo->host_port) + 2; /* plus an extra for ':' */
 
-					if(redirects++ > HTTP_MAX_REDIRECTS){
-						output_err(OUT_ERR, "HTTP: Max Redirects (%d) Reached",
-								HTTP_MAX_REDIRECTS);
+					if(finfo->redirect_no > HTTP_MAX_REDIRECTS){
+						output_err(OUT_ERR, "HTTP: Max Redirects (%d) Reached", HTTP_MAX_REDIRECTS);
 						return 1;
 					}
 					output_err(OUT_INFO, "HTTP: Location redirect, following - %s", location);
+
+					to = malloc(len);
+					if(!to){
+						output_perror("malloc()");
+						return 1;
+					}
+
+					/* if port already given, go with it, else assume current port */
+					if(strchr(location, ':'))
+						strcpy(to, location);
+					else
+						snprintf(to, len, "%s:%s", location, finfo->host_port);
 
 					wget_close(finfo, f);
 					wget_remove(finfo);
@@ -177,7 +189,9 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 					close(finfo->sock);
 					finfo->sock = -1;
 
-					ret = wget(location);
+					ret = wget(to, finfo->redirect_no + 1);
+
+					free(to);
 					http_free_lines(lines);
 
 					return ret;
