@@ -20,6 +20,12 @@ void sigh(int sig)
 	exit(sig);
 }
 
+void cleanup(void)
+{
+	if(global_cfg.logf)
+		fclose(global_cfg.logf);
+}
+
 void verbosity_change(int dir)
 {
 #define v global_cfg.verbosity
@@ -96,6 +102,8 @@ int main(int argc, char **argv)
 
 	if(!url)
 		goto usage;
+
+	atexit(cleanup);
 
 	return wget(url);
 }
