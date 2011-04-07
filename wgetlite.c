@@ -234,8 +234,10 @@ int wget(const char *url)
 	ret = wgetfptr(&finfo);
 
 fin:
-	if(sock != -1)
-		close(sock);
+	if(finfo.sock != -1){
+		close(finfo.sock);
+		finfo.sock = -1;
+	}
 
 	free(outname);
 	free(host);
