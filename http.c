@@ -151,7 +151,7 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 		switch(http_code){
 			case HTTP_OK:
 				if(global_cfg.partial){
-					output_err(OUT_WARN, "HTTP: Partial transfer not supported (server)");
+					output_err(OUT_WARN, "HTTP: Partial transfer rejected (200 OK)");
 					f = wget_close_and_open(finfo, f, "w");
 					if(!f)
 						goto die;
