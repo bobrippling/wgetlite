@@ -1,12 +1,11 @@
 -C: cookies (mm)
 
-none-terminal percentage, like wget:
-  400K .......... .......... .......... .......... ..........  9%  112K 41s
-	450K .......... .......... .......... .......... .......... 10%  114K 41s
-	500K .......... .......... .......... .......... .......... 11%  109K 40s
-
-
 HTTP:
-	User agent
 	Persistent connections?
-	Check Headers (Content-Disposition: attachment; filename="%s") for default filename
+		Like wget - reuse connection to server?
+			struct conn
+			{
+				int sock;
+				char *host;
+			} *cons;
+	Check Headers (Content-Disposition: attachment; filename="%s") for default filename (FIXME'd)
