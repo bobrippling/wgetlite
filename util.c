@@ -17,7 +17,7 @@
 #include "wgetlite.h"
 #include "util.h"
 
-#define BSIZ 1024
+#define BSIZ 4096
 
 
 long mstime()
@@ -46,7 +46,7 @@ FILE *fdup(FILE *f, char *mode)
 
 char *readline(int sock)
 {
-	char buffer[BSIZ];
+	static char buffer[BSIZ];
 	char *pos;
 
 #define RECV(len, flags, lbl_restart) \
@@ -223,4 +223,16 @@ fin:
 		wget_success(finfo);
 
 	return ret;
+}
+
+const char *strfin(const char *s, const char *postfix)
+{
+	char *p = strchr(s, '\0');
+	unsigned int l = strlen(postfix);
+
+	if(l > strlen(s))
+		return NULL;
+
+	p -= l;
+	return strcmp(p, postfix) ? NULL : p;
 }

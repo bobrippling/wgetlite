@@ -16,4 +16,6 @@ int dial(const char *host, const char *port); /* shake it all about */
 int generic_transfer(struct wgetfile *finfo,
 		FILE *out, size_t len, size_t sofar);
 
+const char *strfin(const char *s, const char *postfix);
+
 #endif

@@ -3,6 +3,7 @@
 
 enum printlevel
 {
+	OUT_DEBUG,
 	OUT_VERBOSE,
 	OUT_INFO,
 	OUT_WARN,

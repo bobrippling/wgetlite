@@ -23,6 +23,8 @@
 
 #define STR_EQUALS(a, b) !strcmp(a, b)
 
+#include "cookies.h"
+
 char *proto_default_port(const char *proto)
 {
 	static char port_ftp[] = "21", port_http[] = "80";
@@ -148,11 +150,12 @@ int wget_close(struct wgetfile *finfo, FILE *f)
 	return wget_close_verbose(finfo, f, 1);
 }
 
-int wget_close_if_empty(struct wgetfile *finfo, FILE *f)
+int wget_remove_if_empty(struct wgetfile *finfo, FILE *f)
 {
 	if(ftell(f) > 0)
 		return 0;
-	return wget_close(finfo, f);
+	wget_close(finfo, f);
+	return wget_remove(finfo);
 }
 
 FILE *wget_close_and_open(struct wgetfile *finfo, FILE *f, char *mode)
@@ -172,7 +175,7 @@ int wget(const char *url, int redirect_no)
 	struct wgetfile finfo;
 	wgetfunc *wgetfptr;
 	int sock, ret;
-	char *outname;
+	char *outname = NULL;
 	char *host, *file, *proto, *port;
 
 	char *urlcpy = alloca(strlen(url) + 2);
@@ -217,8 +220,6 @@ int wget(const char *url, int redirect_no)
 
 		/* TODO: urldecode outname (except for %3f) */
 	}
-
-
 
 	sock = dial(host, port);
 	if(sock == -1){

@@ -9,6 +9,7 @@
 #include "output.h"
 #include "wgetlite.h"
 #include "term.h"
+#include "cookies.h"
 
 #define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))
 
@@ -26,6 +27,7 @@ void cleanup(void)
 {
 	if(global_cfg.logf)
 		fclose(global_cfg.logf);
+	cookies_end();
 }
 
 void verbosity_change(int dir)
@@ -46,6 +48,7 @@ int main(int argc, char **argv)
 	int i;
 	char *url = NULL;
 	const char *log_fname = NULL;
+	const char *cookie_fname = NULL;
 	const struct
 	{
 		char opt;
@@ -54,7 +57,8 @@ int main(int argc, char **argv)
 	} opts[] = {
 		{ 'o', &log_fname, 0 },
 		{ 'O', &global_cfg.out_fname, 0 },
-		{ 'U', &global_cfg.user_agent, 1 }
+		{ 'U', &global_cfg.user_agent, 1 },
+		{ 'C', &cookie_fname, 0 }
 	};
 
 	argv0 = *argv;
@@ -130,7 +134,17 @@ int main(int argc, char **argv)
 			url = argv[i];
 		}else{
 		usage:
-			fprintf(stderr, "Usage: %s [-v] [-q] [-d] [-c] [-o log] [-O file] url\n", *argv);
+			fprintf(stderr,
+					"Usage: %s [OPTS] url\n"
+					" -v: Increase Verboseness\n"
+					" -q: Decrease Verboseness\n"
+					" -d: Dot-Style Progress\n"
+					" -c: Attempt to resume\n"
+					" -U: Specify User-Agent\n"
+					" -C: Specify Cookie file\n"
+					" -o Log to file\n"
+					" -O Save to file\n"
+					, *argv);
 			return 1;
 		}
 
@@ -147,6 +161,9 @@ int main(int argc, char **argv)
 		goto usage;
 
 	atexit(cleanup);
+
+	if(cookie_fname)
+		cookies_load(cookie_fname);
 
 	return wget(url, 0);
 }

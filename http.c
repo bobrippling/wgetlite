@@ -17,6 +17,7 @@
 
 #include "http.h"
 #include "progress.h"
+#include "cookies.h"
 
 
 #define HTTP_OK                    200
@@ -108,7 +109,8 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 	if(!lines)
 		return 1;
 
-	if(sscanf(*lines, "HTTP/1.%*d %d ", &http_code) != 1){
+	if(sscanf(*lines, "HTTP/1.%*d %d ", &http_code) != 1 &&
+			sscanf(*lines, "HTTP %d ", &http_code) != 1){
 		output_err(OUT_WARN, "HTTP: Warning: Couldn't parse HTTP response code");
 		http_code = HTTP_OK;
 	}
@@ -217,60 +219,63 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 	return generic_transfer(finfo, f, len, pos == -1 ? 0 : pos);
 die:
 	http_free_lines(lines);
-	wget_close_if_empty(finfo, f);
+	wget_remove_if_empty(finfo, f);
 	return 1;
-}
-
-int http_header_append(char *buffer, size_t len, const char *fmt, ...)
-{
-	char *append = strchr(buffer, '\0');
-	va_list l;
-	int ret;
-
-	append -= 2;
-	va_start(l, fmt);
-	ret = vsnprintf(append, len - strlen(buffer) - 1, fmt, l);
-	va_end(l);
-	return ret;
 }
 
 int http_GET(struct wgetfile *finfo)
 {
 	extern struct cfg global_cfg;
-	char buffer[1024];
 	FILE *f;
 	long pos;
 
-	/* FIXME: check return value */
-	snprintf(buffer, sizeof buffer,
-			"GET %s HTTP/1.1\r\n"
+#define FDPRINTF(...) \
+		do \
+			if(fdprintf(__VA_ARGS__) == -1){ \
+				output_perror("send()"); \
+				return 1; \
+			} \
+		while(0)
+
+	FDPRINTF(finfo->sock, "GET %s HTTP/1.1\r\n"
 			"Host: %s\r\n"
-			"Connection: close\r\n"
-			"\r\n",
+			"Connection: close\r\n",
 			finfo->host_file, finfo->host_name);
 
 	f = wget_open(finfo, NULL);
 	if(!f)
 		return 1;
 
+	output_err(OUT_VERBOSE, "HTTP: Request: GET %s HTTP/1.1 (Host: %s)",
+			finfo->host_file, finfo->host_name);
+
+
 	if(global_cfg.partial && (pos = ftell(f)) > 0)
-		http_header_append(buffer, sizeof(buffer), "Range: bytes=%ld-\r\n\r\n", pos);
+		FDPRINTF(finfo->sock, "Range: bytes=%ld-\r\n", pos);
 		/*
 		 * no need to check for "Accept-Ranges: bytes" header
 		 * since we can check for 200-OK later on
 		 */
 
-	if(global_cfg.user_agent)
-		http_header_append(buffer, sizeof(buffer), "User-Agent: %s\r\n\r\n", global_cfg.user_agent);
 
-
-	output_err(OUT_VERBOSE, "HTTP: Request: GET %s HTTP/1.1 (Host: %s)", finfo->host_file, finfo->host_name);
-	switch(write(finfo->sock, buffer, strlen(buffer))){
-		case  0:
-		case -1:
-			output_perror("write()");
-			return 1;
+	if(global_cfg.user_agent){
+		FDPRINTF(finfo->sock, "User-Agent: %s\r\n", global_cfg.user_agent);
+		output_err(OUT_DEBUG, "HTTP: User Agent \"%s\"", global_cfg.user_agent);
 	}
+
+
+	{
+		struct cookie *c, *start;
+
+		for(start = c = cookies_get(finfo->host_name); c; c = c->next){
+			output_err(OUT_DEBUG, "HTTP: Cookie: %s=%s", c->nam, c->val);
+			FDPRINTF(finfo->sock, "Cookie: %s=%s\r\n", c->nam, c->val);
+		}
+
+		cookies_free(start, 0);
+	}
+
+	FDPRINTF(finfo->sock, "\r\n");
 
 	return http_recv(finfo, f);
 }
