@@ -131,8 +131,10 @@ int dial(const char *host, const char *port)
 
 	freeaddrinfo(list);
 
-	if(sock == -1)
+	if(sock == -1){
 		errno = last_err;
+		output_err(OUT_ERR, "connect to %s:%s: %s\n", host, port, strerror(errno));
+	}
 	return sock;
 }
 

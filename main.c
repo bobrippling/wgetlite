@@ -45,7 +45,7 @@ void verbosity_change(int dir)
 
 int main(int argc, char **argv)
 {
-	int i;
+	int i, proc_opts = 1;
 	char *url = NULL;
 	const char *log_fname = NULL;
 	const char *cookie_fname = NULL;
@@ -75,7 +75,7 @@ int main(int argc, char **argv)
 	global_cfg.user_agent = "wgetlite/0.9 (linux)";
 
 	for(i = 1; i < argc; i++)
-		if(*argv[i] == '-')
+		if(proc_opts && *argv[i] == '-')
 			switch(argv[i][1]){
 				case 'c':
 					global_cfg.partial = 1;
@@ -92,12 +92,21 @@ int main(int argc, char **argv)
 					char *s;
 
 					for(s = argv[i] + 2; *s == argv[i][1]; s++, j++);
-					if(*s != '\0')
+					if(*s != '\0'){
+						fprintf(stderr, "-[qv] can't be followed by anything\n");
 						goto usage;
+					}
 
 					verbosity_change((argv[i][1] == 'v' ? -1 : +1) * j);
 					break;
 				}
+
+				case '-':
+				if(!argv[i][2]){
+					proc_opts = 0;
+					break;
+				}
+				/* fall through */
 
 				default:
 				{
@@ -112,27 +121,36 @@ int main(int argc, char **argv)
 							if(!(*opts[j].ptr = argv[++i]) || *argv[i] == '\0'){
 								if(opts[j].can_empty)
 									*opts[j].ptr = NULL;
-								else
+								else{
+									fprintf(stderr, "option \"%s\" can't be empty\n",
+											argv[i-1]);
 									goto usage;
+								}
 							}
 						}else{
 							*opts[j].ptr = argv[i] + 2;
 							if(**opts[j].ptr == '\0'){
 								if(opts[j].can_empty)
 									*opts[j].ptr = NULL;
-								else
+								else{
+									fprintf(stderr, "option \"%s\" can't be empty\n",
+											argv[i]);
 									goto usage;
+								}
 							}
 						}
 					}else
-						goto usage;
+						goto usage_print;
 
 					break;
 				}
 			}
 		else if(!url){
 			url = argv[i];
+			proc_opts = 0;
 		}else{
+		usage_print:
+			fprintf(stderr, "Unrecognised option \"%s\"\n", argv[i]);
 		usage:
 			fprintf(stderr,
 					"Usage: %s [OPTS] url\n"
@@ -157,8 +175,10 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if(!url)
+	if(!url){
+		fprintf(stderr, "need url\n");
 		goto usage;
+	}
 
 	atexit(cleanup);
 

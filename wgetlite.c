@@ -222,10 +222,8 @@ int wget(const char *url, int redirect_no)
 	}
 
 	sock = dial(host, port);
-	if(sock == -1){
-		output_err(OUT_ERR, "connect to %s:%s: %s", host, port, strerror(errno));
-		return 1;
-	}
+	if(sock == -1)
+		return 1; /* dial() prints the error */
 
 	finfo.sock      = sock;
 	finfo.host_file = file;
