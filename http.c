@@ -28,6 +28,7 @@
 #define HTTP_TEMPORARY_REDIRECT    307
 
 #define HTTP_CLIENT_ERR            400
+#define HTTP_NOT_SATISFIABLE       416
 
 #define HTTP_SVR_ERR               500
 
@@ -142,9 +143,13 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 	}
 
 
-	if(400 <= http_code && http_code < 600)
-		goto die;
-	else
+	if(400 <= http_code && http_code < 600){
+		if(http_code == HTTP_NOT_SATISFIABLE){
+			output_err(OUT_INFO, "HTTP: Already fully downloaded");
+			return 0;
+		}else
+			goto die;
+	}else
 		switch(http_code){
 			case HTTP_OK:
 				if(global_cfg.partial){
