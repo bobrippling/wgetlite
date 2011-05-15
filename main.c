@@ -78,26 +78,25 @@ int main(int argc, char **argv)
 		if(proc_opts && *argv[i] == '-')
 			switch(argv[i][1]){
 				case 'c':
-					global_cfg.partial = 1;
-					break;
-
 				case 'd':
-					global_cfg.prog_dot = 1;
-					break;
-
 				case 'v':
 				case 'q':
 				{
-					int j = 1;
-					char *s;
+					char *iter;
 
-					for(s = argv[i] + 2; *s == argv[i][1]; s++, j++);
-					if(*s != '\0'){
-						fprintf(stderr, "-[qv] can't be followed by anything\n");
-						goto usage;
-					}
+					for(iter = argv[i] + 1; *iter; iter++)
+						switch(*iter){
+							case 'c': global_cfg.partial = 1;  break;
+							case 'd': global_cfg.prog_dot = 1; break;
 
-					verbosity_change((argv[i][1] == 'v' ? -1 : +1) * j);
+							case 'v':
+							case 'q':
+								verbosity_change(*iter == 'v' ? -1 : +1);
+								break;
+
+							default:
+								goto usage;
+						}
 					break;
 				}
 
@@ -160,8 +159,8 @@ int main(int argc, char **argv)
 					" -c: Attempt to resume\n"
 					" -U: Specify User-Agent\n"
 					" -C: Specify Cookie file\n"
-					" -o Log to file\n"
-					" -O Save to file\n"
+					" -o: Log to file\n"
+					" -O: Save to file\n"
 					, *argv);
 			return 1;
 		}
