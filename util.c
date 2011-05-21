@@ -184,7 +184,7 @@ end_of_stream:
 				int trunc = 0;
 
 				if(len && sofar + nread > len){
-					output_err(OUT_WARN, "too much data, truncating");
+					output_err(OUT_WARN, "too much data, truncating by %zu bytes", sofar + nread - len);
 					trunc = 1;
 					nread = len - sofar;
 					sofar = len;
