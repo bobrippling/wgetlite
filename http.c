@@ -179,7 +179,6 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 						output_err(OUT_ERR, "HTTP: Max Redirects (%d) Reached", HTTP_MAX_REDIRECTS);
 						return 1;
 					}
-					output_err(OUT_INFO, "HTTP: Location redirect, following - %s", location);
 
 					to = malloc(len);
 					if(!to){
@@ -187,11 +186,26 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 						return 1;
 					}
 
-					/* if port already given, go with it, else assume current port */
-					if(strchr(location, ':'))
-						strcpy(to, location);
-					else
-						snprintf(to, len, "%s:%s", location, finfo->host_port);
+					if(*location == '/'){
+						/* need to prepend host:port */
+						char *new = realloc(to, len += strlen(finfo->host_name));
+
+						if(!new){
+							output_perror("realloc()");
+							goto die;
+						}
+						to = new;
+
+						snprintf(to, len, "%s:%s%s", finfo->host_name, finfo->host_port, location);
+					}else{
+						/* if port already given, go with it, else assume current port */
+						if(strchr(location, ':'))
+							strcpy(to, location);
+						else
+							snprintf(to, len, "%s:%s", location, finfo->host_port);
+					}
+
+					output_err(OUT_INFO, "HTTP: Location redirect, following - %s", to);
 
 					wget_close(finfo, f);
 					wget_remove(finfo);
@@ -226,31 +240,33 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 		pos = 0;
 
 	/* len is the amount to be sent during this transmission */
-	if(http_code == HTTP_PARTIAL_CONTENT && (hdr = http_GET_find_line(lines, "Content-Range: "))){
-		size_t start, stop, total;
+	if(http_code == HTTP_PARTIAL_CONTENT){
+		if((hdr = http_GET_find_line(lines, "Content-Range: "))){
+			size_t start, stop, total;
 
-		if(sscanf(hdr, "bytes %zu-%zu/%zu", &start, &stop, &total) == 3){
-			if(total == stop + 1){
-				if(pos == (signed)start){
-					len_transfer = stop - start + 1;
+			if(sscanf(hdr, "bytes %zu-%zu/%zu", &start, &stop, &total) == 3){
+				if(total == stop + 1){
+					if(pos == (signed)start){
+						len_transfer = stop - start + 1;
 
-					if(len_transfer && start + len_transfer != total)
-						output_err(OUT_WARN, "HTTP: Server reports different content-length and content-range");
+						if(len_transfer && start + len_transfer != total)
+							output_err(OUT_WARN, "HTTP: Server reports different content-length and content-range");
 
-					output_err(OUT_INFO, "HTTP: Resuming transfer at %zu, for %zu bytes, total length %zu",
-							pos, len_transfer, total);
+						output_err(OUT_INFO, "HTTP: Resuming transfer at %zu, for %zu bytes, total length %zu",
+								pos, len_transfer, total);
+					}else{
+						output_err(OUT_ERR, "HTTP: Server resuming at wrong position");
+						goto die;
+					}
 				}else{
-					output_err(OUT_ERR, "HTTP: Server resuming at wrong position");
+					output_err(OUT_ERR, "HTTP: Unsupported Content-Range");
 					goto die;
 				}
-			}else{
-				output_err(OUT_ERR, "HTTP: Unsupported Content-Range");
-				goto die;
-			}
-		}else
-			output_err(OUT_WARN, "HTTP: Couldn't parse Content-Range \"%s\"", hdr);
-	}else if(global_cfg.partial)
-		output_err(OUT_WARN, "HTTP: No Content-Range header");
+			}else
+				output_err(OUT_WARN, "HTTP: Couldn't parse Content-Range \"%s\"", hdr);
+		}else if(global_cfg.partial)
+			output_err(OUT_WARN, "HTTP: No Content-Range header");
+	}
 
 	http_free_lines(lines);
 
