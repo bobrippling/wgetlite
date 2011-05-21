@@ -21,15 +21,13 @@
 #endif
 
 
-#define STR_EQUALS(a, b) !strcmp(a, b)
-
 #include "cookies.h"
 
 char *proto_default_port(const char *proto)
 {
 	static char port_ftp[] = "21", port_http[] = "80";
 
-	if(STR_EQUALS(proto, "ftp"))
+	if(!strcmp(proto, "ftp"))
 		return port_ftp;
 
 	return port_http;
@@ -201,9 +199,9 @@ int wget(const char *url, int redirect_no)
 	}
 
 	if(global_cfg.out_fname){
-		if(!strcmp(global_cfg.out_fname, "-")){
+		if(!strcmp(global_cfg.out_fname, "-"))
 			outname = NULL;
-		}else
+		else
 			outname = strdup(global_cfg.out_fname);
 
 		finfo.namemode = NAME_FORCE;
