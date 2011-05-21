@@ -21,6 +21,7 @@
 
 
 #define HTTP_OK                    200
+#define HTTP_PARTIAL_CONTENT       206
 
 #define HTTP_MOVED_PERMANENTLY     301
 #define HTTP_FOUND                 302
@@ -99,10 +100,10 @@ char *http_GET_find_line(char **lines, char *line)
 int http_recv(struct wgetfile *finfo, FILE *f)
 {
 	extern struct cfg global_cfg;
-	long pos;
 	char **lines;
 	char *hdr;
-	size_t len;
+	ssize_t pos;
+	size_t len_transfer;
 	int http_code;
 
 	lines = http_read_lines(finfo->sock);
@@ -121,7 +122,7 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 		for(iter = lines; *iter; iter++)
 			output_err(OUT_VERBOSE, "HTTP: Header: %s", *iter);
 	}else
-		output_err(OUT_INFO, "HTTP: reply: %s", *lines);
+		output_err(OUT_INFO, "HTTP: Reply: %s", *lines);
 
 
 	if(finfo->namemode == NAME_GUESS &&
@@ -132,14 +133,13 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 			char *end;
 			name += 10;
 			end = strchr(name, '"');
-			if(end)
+			if(end){
 				*end = '\0';
-			else
+				output_err(OUT_INFO, "HTTP: Using server name: \"%s\"", name);
+				/* FIXME: relink to name */
+			}else
 				name = NULL;
 		}
-
-		output_err(OUT_INFO, "HTTP: Using server name: \"%s\"", name);
-		/* FIXME: relink to name */
 	}
 
 
@@ -152,12 +152,15 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 	}else
 		switch(http_code){
 			case HTTP_OK:
-				if(global_cfg.partial){
+				if(global_cfg.partial && ftell(f) > 0){
 					output_err(OUT_WARN, "HTTP: Partial transfer rejected (200 OK)");
 					f = wget_close_and_open(finfo, f, "w");
 					if(!f)
 						goto die;
 				}
+				break;
+
+			case HTTP_PARTIAL_CONTENT:
 				break;
 
 			case HTTP_MOVED_PERMANENTLY:
@@ -209,19 +212,49 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 			}
 		}
 
-	len = 0;
+	len_transfer = 0;
 	if((hdr = http_GET_find_line(lines, "Content-Length: ")))
-		if(sscanf(hdr, "%zu", &len) == 1)
-			output_err(OUT_INFO, "HTTP: Content-Length: %ld", len);
+		if(sscanf(hdr, "%zu", &len_transfer) == 1)
+			output_err(OUT_INFO, "HTTP: Content-Length: %ld", len_transfer);
 		else
 			output_err(OUT_WARN, "HTTP: Content-Length unparseable");
 	else
 		output_err(OUT_INFO, "HTTP: No Content-Length header");
 
+	pos = ftell(f);
+	if(pos == -1)
+		pos = 0;
+
+	/* len is the amount to be sent during this transmission */
+	if(http_code == HTTP_PARTIAL_CONTENT && (hdr = http_GET_find_line(lines, "Content-Range: "))){
+		size_t start, stop, total;
+
+		if(sscanf(hdr, "bytes %zu-%zu/%zu", &start, &stop, &total) == 3){
+			if(total == stop + 1){
+				if(pos == (signed)start){
+					len_transfer = stop - start + 1;
+
+					if(len_transfer && start + len_transfer != total)
+						output_err(OUT_WARN, "HTTP: Server reports different content-length and content-range");
+
+					output_err(OUT_INFO, "HTTP: Resuming transfer at %zu, for %zu bytes, total length %zu",
+							pos, len_transfer, total);
+				}else{
+					output_err(OUT_ERR, "HTTP: Server resuming at wrong position");
+					goto die;
+				}
+			}else{
+				output_err(OUT_ERR, "HTTP: Unsupported Content-Range");
+				goto die;
+			}
+		}else
+			output_err(OUT_WARN, "HTTP: Couldn't parse Content-Range \"%s\"", hdr);
+	}else if(global_cfg.partial)
+		output_err(OUT_WARN, "HTTP: No Content-Range header");
+
 	http_free_lines(lines);
 
-	pos = ftell(f);
-	return generic_transfer(finfo, f, len, pos == -1 ? 0 : pos);
+	return generic_transfer(finfo, f, pos + len_transfer, pos);
 die:
 	http_free_lines(lines);
 	wget_remove_if_empty(finfo, f);
