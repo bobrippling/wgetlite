@@ -1,8 +1,5 @@
--C: cookies (mm)
-
 HTTP:
-	Persistent connections?
-		Like wget - reuse connection to server?
+	Persistent connections? Like wget - reuse connection to server?
 			struct conn
 			{
 				int sock;
