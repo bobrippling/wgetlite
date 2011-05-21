@@ -12,6 +12,10 @@ usage(){
 	exit 1
 }
 
+filelen_half(){
+	expr $(stat -c '%s' $f) / 2
+}
+
 http(){
 	etest 1
 	$WL -vvv -O /dev/null http://www.google.com/
@@ -27,6 +31,25 @@ http(){
 
 	etest 5
 	$WL -O- www.google.com:80 > /dev/null
+
+	url_206=http://tools.ietf.org/html/rfc2616
+
+	etest 6
+	f=/tmp/wgetlite_test
+	$WL -O $f $url_206
+	cp $f ${f}2
+
+	len=`filelen_half $f`
+	truncate -s$len $f
+	trap "rm -f $f ${f}2" EXIT
+
+	etest 7
+	$WL -c -O $f $url_206
+
+	cmp $f ${f}2 || {
+		printf '\e[1;31mHTTP Resume failed!\e[m\n'
+		return 1
+	}
 }
 
 ftp(){
@@ -39,7 +62,7 @@ ftp(){
 	etest 6
 	$WL -O $f ftp://ftp.gnu.org/find.txt.gz
 
-	len=$(expr $(stat -c '%s' $f) / 2)
+	len=$(filelen_half $f)
 
 	truncate -s$len $f
 
