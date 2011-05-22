@@ -19,8 +19,9 @@ const char *argv0;
 
 void sigh(int sig)
 {
-	fputs("we get signal!\n", stderr);
-	exit(sig);
+	if(sig != SIGPIPE)
+		fprintf(stderr, "wgetlite: caught signal %d\n", sig);
+	exit(127 + sig);
 }
 
 void cleanup(void)
