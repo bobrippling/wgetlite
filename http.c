@@ -153,10 +153,8 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 		switch(http_code){
 			case HTTP_OK:
 				if(global_cfg.partial && ftell(f) > 0){
-					output_err(OUT_WARN, "HTTP: Partial transfer rejected (200 OK)");
-					f = wget_close_and_open(finfo, f, "w");
-					if(!f)
-						goto die;
+					output_err(OUT_ERR, "HTTP: Partial transfer rejected (200 OK)");
+					goto die;
 				}
 				break;
 

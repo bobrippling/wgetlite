@@ -186,7 +186,6 @@ login_fail:
 
 		if(i != FTP_REQ_FILE_PENDING){
 			output_err(OUT_ERR, "FTP REST failed");
-			/* FIXME: truncate file */
 			return 1;
 		}
 	}
