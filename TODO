@@ -1,3 +1,7 @@
+authentication:
+	http://bob:secret@download.com/file.tar.gz
+	ftp://tim:secret@download.com/file.bz2
+
 HTTP:
 	Persistent connections? Like wget - reuse connection to server?
 			struct conn
@@ -5,4 +9,5 @@ HTTP:
 				int sock;
 				char *host;
 			} *cons;
+
 	Check Headers (Content-Disposition: attachment; filename="%s") for default filename (FIXME'd)

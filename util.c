@@ -120,8 +120,11 @@ int dial(const char *host, const char *port)
 		if(sock == -1)
 			continue;
 
+retry:
 		if(connect(sock, iter->ai_addr, iter->ai_addrlen) == 0)
 			break;
+		else if(errno == EINTR)
+			goto retry;
 
 		if(errno)
 			last_err = errno;

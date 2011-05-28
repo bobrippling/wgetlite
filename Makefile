@@ -2,6 +2,8 @@ CFLAGS = -Wall -Wextra -pedantic -g -std=c99 -D_POSIX_SOURCE -D_POSIX_C_SOURCE=2
 
 wgetlite: main.o wgetlite.o http.o progress.o util.o \
 	ftp.o output.o term.o cookies.o
+	${CC} -o $@ $^
+	strip $@
 
 clean:
 	rm -f *.o wgetlite
