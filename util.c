@@ -136,7 +136,7 @@ retry:
 
 	if(sock == -1){
 		errno = last_err;
-		output_err(OUT_ERR, "connect to %s:%s: %s\n", host, port, strerror(errno));
+		output_err(OUT_ERR, "connect to %s:%s: %s", host, port, strerror(errno));
 	}
 	return sock;
 }
@@ -146,10 +146,11 @@ int generic_transfer(struct wgetfile *finfo, FILE *out, size_t len, size_t sofar
 #define RET(n) do{ ret = n; goto fin; }while(0)
 	int ret = 0;
 	long last_progress;
+	long chunk = 0; /* for bps */
 
 	last_progress = mstime();
 	if(!len)
-		progress_unknown();
+		progress_unknown(sofar, 0);
 
 	do{
 		ssize_t nread;
@@ -201,6 +202,8 @@ end_of_stream:
 					RET(1);
 				}
 
+				chunk += nread;
+
 				if(trunc)
 					goto end_of_stream;
 			}
@@ -208,12 +211,21 @@ end_of_stream:
 
 		t = mstime();
 		if(last_progress + 100 < t){
-			last_progress = t;
+			long speed;
+			long tdiff = t - last_progress;
 
+			if(tdiff){
+				speed = 1000 * chunk / tdiff;
+				chunk = 0;
+			}else{
+				speed = 0;
+			}
+
+			last_progress = t;
 			if(len)
-				progress_show(sofar, len);
+				progress_show(sofar, len, speed);
 			else
-				progress_unknown();
+				progress_unknown(sofar, speed);
 		}
 	}while(1);
 

@@ -170,7 +170,7 @@ int main(int argc, char **argv)
 		if(!strcmp(log_fname, "-")){
 			global_cfg.logf = stdout;
 		}else if(!(global_cfg.logf = fopen(log_fname, "a"))){
-			output_err(OUT_ERR, "open log: %s: %s\n", log_fname, strerror(errno));
+			output_err(OUT_ERR, "open log: %s: %s", log_fname, strerror(errno));
 			return 1;
 		}
 	}
