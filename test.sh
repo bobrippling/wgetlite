@@ -16,6 +16,16 @@ filelen_half(){
 	expr $(stat -c '%s' $f) / 2
 }
 
+resume_check(){
+	cmp $1 $2 || {
+		printf '\e[1;31mResume failed!\e[m\n'
+		rm -f $1 $2
+		exit 1
+	}
+	rm -f $1 $2
+	return 0
+}
+
 http(){
 	etest 1
 	$WL -vvv -O /dev/null http://www.google.com/
@@ -41,15 +51,11 @@ http(){
 
 	len=`filelen_half $f`
 	truncate -s$len $f
-	trap "rm -f $f ${f}2" EXIT
 
 	etest 7
 	$WL -c -O $f $url_206
 
-	cmp $f ${f}2 || {
-		printf '\e[1;31mHTTP Resume failed!\e[m\n'
-		return 1
-	}
+	resume_check "$f" "${f}2"
 }
 
 ftp(){
@@ -63,11 +69,14 @@ ftp(){
 	$WL -O $f ftp://ftp.gnu.org/find.txt.gz
 
 	len=$(filelen_half $f)
+	cp $f ${f}2
 
 	truncate -s$len $f
 
 	etest 7
 	$WL -c -O $f ftp://ftp.gnu.org/find.txt.gz
+	
+	resume_check "$f" "${f}2"
 }
 
 if [ $# -eq 1 ]
