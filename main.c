@@ -10,6 +10,7 @@
 #include "wgetlite.h"
 #include "term.h"
 #include "cookies.h"
+#include "connections.h"
 
 #define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))
 
@@ -46,21 +47,9 @@ void verbosity_change(int dir)
 
 int main(int argc, char **argv)
 {
-	int i, proc_opts = 1;
-	char *url = NULL;
+	int ret = 0, ch;
 	const char *log_fname = NULL;
 	const char *cookie_fname = NULL;
-	const struct
-	{
-		char opt;
-		const char **ptr;
-		int can_empty;
-	} opts[] = {
-		{ 'o', &log_fname, 0 },
-		{ 'O', &global_cfg.out_fname, 0 },
-		{ 'U', &global_cfg.user_agent, 1 },
-		{ 'C', &cookie_fname, 0 }
-	};
 
 	argv0 = *argv;
 
@@ -75,96 +64,41 @@ int main(int argc, char **argv)
 	global_cfg.prog_dot = !isatty(1);
 	global_cfg.user_agent = "wgetlite/0.9 (linux)";
 
-	for(i = 1; i < argc; i++)
-		if(proc_opts && *argv[i] == '-')
-			switch(argv[i][1]){
-				case 'c':
-				case 'd':
-				case 'v':
-				case 'q':
-				{
-					char *iter;
+	while((ch = getopt(argc, argv, "vqdcfU:C:o:O:")) != -1)
+		switch(ch){
+			case 'v':
+			case 'q':
+				verbosity_change(ch == 'v' ? -1 : +1);
+				break;
 
-					for(iter = argv[i] + 1; *iter; iter++)
-						switch(*iter){
-							case 'c': global_cfg.partial = 1;  break;
-							case 'd': global_cfg.prog_dot = 1; break;
+			case 'f': global_cfg.overwrite = 1;           break;
+			case 'c': global_cfg.partial = 1;             break;
+			case 'd': global_cfg.prog_dot = 1;            break;
+			case 'U': global_cfg.user_agent = optarg;     break;
+			case 'C': cookie_fname = optarg;              break;
+			case 'o': log_fname = optarg;                 break;
+			case 'O': global_cfg.out_fname = optarg;      break;
 
-							case 'v':
-							case 'q':
-								verbosity_change(*iter == 'v' ? -1 : +1);
-								break;
-
-							default:
-								goto usage;
-						}
-					break;
-				}
-
-				case '-':
-				if(!argv[i][2]){
-					proc_opts = 0;
-					break;
-				}
-				/* fall through */
-
-				default:
-				{
-					unsigned int j;
-
-					for(j = 0; j < ARRAY_LEN(opts); j++)
-						if(argv[i][1] == opts[j].opt)
-							break;
-
-					if(j < ARRAY_LEN(opts)){
-						if(argv[i][2] == '\0'){
-							if(!(*opts[j].ptr = argv[++i]) || *argv[i] == '\0'){
-								if(opts[j].can_empty)
-									*opts[j].ptr = NULL;
-								else{
-									fprintf(stderr, "option \"%s\" can't be empty\n",
-											argv[i-1]);
-									goto usage;
-								}
-							}
-						}else{
-							*opts[j].ptr = argv[i] + 2;
-							if(**opts[j].ptr == '\0'){
-								if(opts[j].can_empty)
-									*opts[j].ptr = NULL;
-								else{
-									fprintf(stderr, "option \"%s\" can't be empty\n",
-											argv[i]);
-									goto usage;
-								}
-							}
-						}
-					}else
-						goto usage_print;
-
-					break;
-				}
-			}
-		else if(!url){
-			url = argv[i];
-			proc_opts = 0;
-		}else{
-		usage_print:
-			fprintf(stderr, "Unrecognised option \"%s\"\n", argv[i]);
-		usage:
-			fprintf(stderr,
-					"Usage: %s [OPTS] url\n"
-					" -v: Increase Verboseness\n"
-					" -q: Decrease Verboseness\n"
-					" -d: Dot-Style Progress\n"
-					" -c: Attempt to resume\n"
-					" -U: Specify User-Agent\n"
-					" -C: Specify Cookie file\n"
-					" -o: Log to file\n"
-					" -O: Save to file\n"
-					, *argv);
-			return 1;
+			default:
+usage:
+				fprintf(stderr,
+						"Usage: %s [OPTS] url\n"
+						" -v: Increase Verboseness\n"
+						" -q: Decrease Verboseness\n"
+						" -d: Dot-Style Progress\n"
+						" -c: Attempt to resume\n"
+						" -U: Specify User-Agent\n"
+						" -C: Specify Cookie file\n"
+						" -o: Log to file\n"
+						" -O: Save to file\n"
+						" -f: Overwrite files\n"
+						, *argv);
 		}
+
+	if(optind == argc){
+		fprintf(stderr, "need url(s)\n");
+		goto usage;
+	}
 
 	if(log_fname){
 		if(!strcmp(log_fname, "-")){
@@ -175,15 +109,15 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if(!url){
-		fprintf(stderr, "need url\n");
-		goto usage;
-	}
-
 	atexit(cleanup);
 
 	if(cookie_fname)
 		cookies_load(cookie_fname);
 
-	return wget(url, 0);
+	for(; optind < argc; optind++)
+		ret |= wget(argv[optind], 0);
+
+	connection_fin();
+
+	return ret;
 }
