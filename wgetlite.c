@@ -16,6 +16,8 @@
 #include "util.h"
 #include "term.h"
 
+#include "connections.h"
+
 #ifndef PATH_MAX
 # define PATH_MAX 255
 #endif
@@ -101,6 +103,7 @@ FILE *wget_open(struct wgetfile *finfo, char *mode)
 		/* if not explicitly specified, check for finfo->outname overwrites */
 		if(!global_cfg.out_fname &&
 				!global_cfg.partial &&
+				!global_cfg.overwrite &&
 				!access(finfo->outname, F_OK)){
 			output_err(OUT_ERR, "%s: file exists", finfo->outname);
 			return NULL;
@@ -192,11 +195,12 @@ int wget(const char *url, int redirect_no)
 	else if(!strcmp(proto, "ftp"))  wgetfptr = ftp_RETR;
 	/*else if(!strcmp(proto, "file")) wgetfptr = file_copy;*/
 	else{
-		/* FIXME: valgrind test */
 		ret = 1;
 		output_err(OUT_ERR, "unknown protocol: %s", proto);
 		goto bail;
 	}
+
+	free(proto);
 
 	if(global_cfg.out_fname){
 		if(!strcmp(global_cfg.out_fname, "-"))
@@ -219,9 +223,15 @@ int wget(const char *url, int redirect_no)
 		/* TODO: urldecode outname (except for %3f) */
 	}
 
-	sock = dial(host, port);
-	if(sock == -1)
-		return 1; /* dial() prints the error */
+	sock = connection_fd(host, port);
+	if(sock == -1){
+		sock = dial(host, port);
+		if(sock == -1)
+			return 1; /* dial() prints the error */
+		connection_add(sock, host, port);
+	}else{
+		output_err(OUT_INFO, "Reusing connection to %s:%s", host, port);
+	}
 
 	finfo.sock      = sock;
 	finfo.host_file = file;
@@ -232,16 +242,13 @@ int wget(const char *url, int redirect_no)
 	ret = wgetfptr(&finfo);
 
 fin:
-	if(finfo.sock != -1){
-		close(finfo.sock);
-		finfo.sock = -1;
-	}
+	/* don't close the connection - let connection_* handle it */
 
-	free(outname);
-	free(host);
-	free(file);
-	free(proto);
-	free(port);
+	/* free the struct's members, since they might be changed */
+	free(finfo.host_file);
+	free(finfo.host_name);
+	free(finfo.host_port);
+	free(finfo.outname  );
 
 	return ret;
 bail:

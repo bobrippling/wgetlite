@@ -93,6 +93,7 @@ usage:
 						" -O: Save to file\n"
 						" -f: Overwrite files\n"
 						, *argv);
+				return 1;
 		}
 
 	if(optind == argc){

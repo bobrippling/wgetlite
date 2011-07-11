@@ -18,6 +18,7 @@
 #include "http.h"
 #include "progress.h"
 #include "cookies.h"
+#include "connections.h"
 
 
 #define HTTP_OK                    200
@@ -67,6 +68,10 @@ char **http_read_lines(int sock)
 
 		if(!*lines[curline]){
 			free(lines[curline]);
+			if(!curline){
+				free(lines);
+				return NULL;
+			}
 			lines[curline] = NULL;
 			break;
 		}
@@ -108,8 +113,10 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 
 	lines = http_read_lines(finfo->sock);
 
-	if(!lines)
-		return 1;
+	if(!lines){
+		output_err(OUT_ERR, "Premature end-of-stream");
+		goto die;
+	}
 
 	if(sscanf(*lines, "HTTP/1.%*d %d ", &http_code) != 1 &&
 			sscanf(*lines, "HTTP %d ", &http_code) != 1){
@@ -142,14 +149,18 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 		}
 	}
 
+	len_transfer = 0;
+	if((hdr = http_GET_find_line(lines, "Content-Length: ")) && sscanf(hdr, "%zu", &len_transfer) != 1)
+		output_err(OUT_WARN, "HTTP: Content-Length unparseable");
 
-	if(400 <= http_code && http_code < 600){
+	if(400 <= http_code && http_code < 600)
 		if(http_code == HTTP_NOT_SATISFIABLE){
 			output_err(OUT_INFO, "HTTP: Already fully downloaded");
 			return 0;
-		}else
+		}else{
 			goto die;
-	}else
+		}
+	else
 		switch(http_code){
 			case HTTP_OK:
 				if(global_cfg.partial && ftell(f) > 0){
@@ -208,9 +219,12 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 					wget_close(finfo, f);
 					wget_remove(finfo);
 
-					close(finfo->sock);
-					finfo->sock = -1;
+					if(len_transfer)
+						connection_discard_data(finfo->sock, len_transfer);
+					/* else no Content-Length, assume zero */
 
+
+					/* don't close the socket, just follow through (eurgh) */
 					ret = wget(to, finfo->redirect_no + 1);
 
 					free(to);
@@ -224,18 +238,14 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 			}
 		}
 
-	len_transfer = 0;
-	if((hdr = http_GET_find_line(lines, "Content-Length: ")))
-		if(sscanf(hdr, "%zu", &len_transfer) == 1)
-			output_err(OUT_INFO, "HTTP: Content-Length: %ld", len_transfer);
-		else
-			output_err(OUT_WARN, "HTTP: Content-Length unparseable");
-	else
-		output_err(OUT_INFO, "HTTP: No Content-Length header");
-
 	pos = ftell(f);
 	if(pos == -1)
 		pos = 0;
+
+	if(len_transfer)
+		output_err(OUT_INFO, "HTTP: Content-Length: %ld", len_transfer);
+	else
+		output_err(OUT_INFO, "HTTP: No Content-Length header");
 
 	/* len is the amount to be sent during this transmission */
 	if(http_code == HTTP_PARTIAL_CONTENT){
@@ -270,9 +280,26 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 
 	return generic_transfer(finfo, f, pos + len_transfer, pos);
 die:
-	http_free_lines(lines);
+	if(lines)
+		http_free_lines(lines);
+	if(len_transfer)
+		connection_discard_data(finfo->sock, len_transfer);
 	wget_remove_if_empty(finfo, f);
 	return 1;
+}
+
+int http_print_lines(char **list, int fd, int n)
+{
+	int i;
+	for(i = 0; i < n; i++)
+		if(list[i])
+			if(fdprintf(fd, "%s\r\n", list[i]) == -1)
+				return 1;
+
+	if(write(fd, "\r\n", 2) != 2)
+		return 1;
+
+	return 0;
 }
 
 int http_GET(struct wgetfile *finfo)
@@ -280,19 +307,22 @@ int http_GET(struct wgetfile *finfo)
 	extern struct cfg global_cfg;
 	FILE *f;
 	long pos;
+	int nheaders;
+	char **headers;
+	int hdidx;
 
-#define FDPRINTF(...) \
-		do \
-			if(fdprintf(__VA_ARGS__) == -1){ \
-				output_perror("send()"); \
-				return 1; \
-			} \
-		while(0)
+	nheaders = 16;
+	headers = malloc(nheaders * sizeof(char *));
 
-	FDPRINTF(finfo->sock, "GET %s HTTP/1.1\r\n"
-			"Host: %s\r\n"
-			"Connection: close\r\n",
-			finfo->host_file, finfo->host_name);
+	if(!headers){
+		output_perror("malloc()");
+		return 1;
+	}
+
+	headers[0] = allocprintf("HEAD %s HTTP/1.1", finfo->host_file);
+	headers[1] = allocprintf("Host: %s", finfo->host_name);
+	headers[2] = strdup("Connection: Keep-Alive");
+	hdidx = 3;
 
 	f = wget_open(finfo, NULL);
 	if(!f)
@@ -303,7 +333,7 @@ int http_GET(struct wgetfile *finfo)
 
 
 	if(global_cfg.partial && (pos = ftell(f)) > 0)
-		FDPRINTF(finfo->sock, "Range: bytes=%ld-\r\n", pos);
+		headers[hdidx++] = allocprintf("Range: bytes=%ld-", pos);
 		/*
 		 * no need to check for "Accept-Ranges: bytes" header
 		 * since we can check for 200-OK later on
@@ -311,7 +341,7 @@ int http_GET(struct wgetfile *finfo)
 
 
 	if(global_cfg.user_agent){
-		FDPRINTF(finfo->sock, "User-Agent: %s\r\n", global_cfg.user_agent);
+		headers[hdidx++] = allocprintf("User-Agent: %s", global_cfg.user_agent);
 		output_err(OUT_DEBUG, "HTTP: User Agent \"%s\"", global_cfg.user_agent);
 	}
 
@@ -321,13 +351,48 @@ int http_GET(struct wgetfile *finfo)
 
 		for(start = c = cookies_get(finfo->host_name); c; c = c->next){
 			output_err(OUT_DEBUG, "HTTP: Cookie: %s=%s", c->nam, c->val);
-			FDPRINTF(finfo->sock, "Cookie: %s=%s\r\n", c->nam, c->val);
+			headers[hdidx++] = allocprintf("Cookie: %s=%s", c->nam, c->val);
+			if(hdidx == nheaders-2){
+				output_err(OUT_WARN, "Too many cookies");
+				break;
+			}
 		}
 
 		cookies_free(start, 0);
 	}
 
-	FDPRINTF(finfo->sock, "\r\n");
+	headers[hdidx] = NULL;
+
+	{
+		char **lines;
+		char *ka;
+
+		if(http_print_lines(headers, finfo->sock, hdidx)){
+			http_free_lines(headers);
+			return 1;
+		}
+
+		lines = http_read_lines(finfo->sock);
+
+		if(!lines){
+			http_free_lines(lines);
+			http_free_lines(headers);
+			return 1;
+		}
+
+		ka = http_GET_find_line(lines, "Content-Length: ");
+		http_free_lines(lines);
+		if(!ka){
+			/* we can't do keep-alive, since we don't know the amount to skip ahead etc etc */
+			free(headers[2]);
+			headers[2] = strdup("Connection: close");
+		}
+	}
+
+	free(headers[0]);
+	headers[0] = allocprintf("GET %s HTTP/1.1", finfo->host_file);
+	http_print_lines(headers, finfo->sock, hdidx);
+	http_free_lines(headers);
 
 	return http_recv(finfo, f);
 }
