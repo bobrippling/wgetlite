@@ -72,7 +72,7 @@ int main(int argc, char **argv)
 	signal(SIGPIPE,  sigh);
 	signal(SIGWINCH, term_winch);
 
-	global_cfg.prog_dot = !isatty(1);
+	global_cfg.prog_dot = !isatty(STDERR_FILENO);
 	global_cfg.user_agent = "wgetlite/0.9 (linux)";
 
 	for(i = 1; i < argc; i++)
