@@ -147,6 +147,7 @@ int generic_transfer(struct wgetfile *finfo, FILE *out, size_t len, size_t sofar
 	int ret = 0;
 	long last_progress, last_speed_calc;
 	long chunk = 0; /* for bps */
+	long speed = 0;
 
 	last_progress = last_speed_calc = mstime();
 	if(!len)
@@ -199,7 +200,7 @@ end_of_stream:
 					sofar += nread;
 				}
 
-				while(!fwrite(buffer, sizeof(buffer[0]), nread, out)){
+				while(fwrite(buffer, sizeof(buffer[0]), nread, out) != (unsigned)nread){
 					if(errno == EINTR)
 						continue;
 					output_perror("fwrite()");
@@ -218,17 +219,14 @@ end_of_stream:
 
 		t = mstime();
 		if(last_progress + 250 < t){
-			long speed = 0;
-
 			if(last_speed_calc + 1000 < t){
-				long tdiff = t - last_progress;
+				long tdiff = t - last_speed_calc;
 
 				if(tdiff){
-					speed = 1000 /* kbps */ * chunk / tdiff;
+					speed = 1000.0f /* kbps */ * (float)chunk / (float)tdiff;
 					chunk = 0;
+					last_speed_calc = t;
 				}
-
-				last_speed_calc = t;
 			}
 
 			last_progress = t;
