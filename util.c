@@ -16,6 +16,7 @@
 #include "output.h"
 #include "wgetlite.h"
 #include "util.h"
+#include "connections.h"
 
 #define BSIZ 4096
 
@@ -58,7 +59,6 @@ lbl_restart: \
 				output_perror("recv()"); \
 				return NULL; \
 			case 0: /* unexpected here - need \r\n\r\n */ \
-				output_err(OUT_ERR, "premature end of stream"); \
 				return NULL; \
 		}
 
@@ -145,10 +145,10 @@ int generic_transfer(struct wgetfile *finfo, FILE *out, size_t len, size_t sofar
 {
 #define RET(n) do{ ret = n; goto fin; }while(0)
 	int ret = 0;
-	long last_progress;
+	long last_progress, last_speed_calc;
 	long chunk = 0; /* for bps */
 
-	last_progress = mstime();
+	last_progress = last_speed_calc = mstime();
 	if(!len)
 		progress_unknown(sofar, 0);
 
@@ -165,15 +165,18 @@ int generic_transfer(struct wgetfile *finfo, FILE *out, size_t len, size_t sofar
 				/* TODO: retry */
 				if(len && sofar == len)
 					goto end_of_stream;
+				connection_close_fd(finfo->sock);
 				output_perror("recv()");
 				RET(1);
 
 			case 0:
 end_of_stream:
+				connection_close_fd(finfo->sock);
+
 				if(len){
-					if(sofar == len)
+					if(sofar == len){
 						RET(0);
-					else{
+					}else{
 						/* TODO: goto retry */
 						progress_incomplete();
 						RET(1);
@@ -192,8 +195,9 @@ end_of_stream:
 					trunc = 1;
 					nread = len - sofar;
 					sofar = len;
-				}else
+				}else{
 					sofar += nread;
+				}
 
 				while(!fwrite(buffer, sizeof(buffer[0]), nread, out)){
 					if(errno == EINTR)
@@ -201,6 +205,9 @@ end_of_stream:
 					output_perror("fwrite()");
 					RET(1);
 				}
+
+				if(sofar == len)
+					RET(0); /* don't wait for more, maybe be pipelining */
 
 				chunk += nread;
 
@@ -210,15 +217,18 @@ end_of_stream:
 		}
 
 		t = mstime();
-		if(last_progress + 100 < t){
-			long speed;
-			long tdiff = t - last_progress;
+		if(last_progress + 250 < t){
+			long speed = 0;
 
-			if(tdiff){
-				speed = 1000 * chunk / tdiff;
-				chunk = 0;
-			}else{
-				speed = 0;
+			if(last_speed_calc + 1000 < t){
+				long tdiff = t - last_progress;
+
+				if(tdiff){
+					speed = 1000 /* kbps */ * chunk / tdiff;
+					chunk = 0;
+				}
+
+				last_speed_calc = t;
 			}
 
 			last_progress = t;
@@ -252,4 +262,46 @@ const char *strfin(const char *s, const char *postfix)
 
 	p -= l;
 	return strcmp(p, postfix) ? NULL : p;
+}
+
+char *allocprintf(const char *fmt, ...)
+{
+	va_list l;
+	int n;
+	char *buf;
+
+	va_start(l, fmt);
+	n = vsnprintf(NULL, 0, fmt, l);
+	va_end(l);
+
+	buf = malloc(n + 2);
+	if(!buf)
+		return NULL;
+
+	va_start(l, fmt);
+	vsnprintf(buf, n + 1, fmt, l);
+	va_end(l);
+
+	return buf;
+}
+
+int discard(int fd, int len)
+{
+	char bin[4096];
+
+	do{
+		int amt = sizeof bin;
+		int n;
+
+		if(amt > len)
+			amt = len;
+
+		n = recv(fd, bin, amt, 0);
+		if(n <= 0)
+			return 1;
+
+		len -= n;
+	}while(len > 0);
+
+	return 0;
 }

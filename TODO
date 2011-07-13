@@ -11,3 +11,5 @@ HTTP:
 			} *cons;
 
 	Check Headers (Content-Disposition: attachment; filename="%s") for default filename (FIXME'd)
+
+	Exit code varies - 8 for HTTP 404, etc etc

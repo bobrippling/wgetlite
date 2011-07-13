@@ -13,15 +13,15 @@ extern struct cfg global_cfg;
 
 static void progress_get_div(long total, int *div, const char **sizstr)
 {
-	if(total > 1024 * 1024){
-		*div    = 1024 * 1024;
-		*sizstr = "M";
-	}else if(total > 1024){
+	if(total < 1024){
+		*div    = 1;
+		*sizstr = "";
+	}else if(total < 1024 * 1024){
 		*div    = 1024;
 		*sizstr = "K";
 	}else{
-		*div    = 1;
-		*sizstr = "";
+		*div    = 1024 * 1024;
+		*sizstr = "M";
 	}
 }
 

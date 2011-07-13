@@ -3,7 +3,7 @@
 
 struct cfg
 {
-	int partial, prog_dot;
+	int partial, prog_dot, overwrite;
 	enum printlevel verbosity;
 	const char *out_fname;
 	const char *user_agent;
