@@ -170,12 +170,27 @@ int wget_remove(struct wgetfile *finfo)
 	return remove(finfo->outname);
 }
 
+int wget_connect(struct wgetfile *finfo)
+{
+	finfo->sock = connection_fd(finfo->host_name, finfo->host_port);
+
+	if(finfo->sock == -1){
+		finfo->sock = dial(finfo->host_name, finfo->host_port);
+		if(finfo->sock == -1)
+			return 1; /* dial() prints the error */
+		connection_add(finfo->sock, finfo->host_name, finfo->host_port);
+	}else{
+		output_err(OUT_INFO, "Reusing connection to %s:%s", finfo->host_name, finfo->host_port);
+	}
+	return 0;
+}
+
 int wget(const char *url, int redirect_no)
 {
 	extern struct cfg global_cfg;
 	struct wgetfile finfo;
 	wgetfunc *wgetfptr;
-	int sock, ret;
+	int ret;
 	char *outname = NULL;
 	char *host, *file, *proto, *port;
 
@@ -223,21 +238,14 @@ int wget(const char *url, int redirect_no)
 		/* TODO: urldecode outname (except for %3f) */
 	}
 
-	sock = connection_fd(host, port);
-	if(sock == -1){
-		sock = dial(host, port);
-		if(sock == -1)
-			return 1; /* dial() prints the error */
-		connection_add(sock, host, port);
-	}else{
-		output_err(OUT_INFO, "Reusing connection to %s:%s", host, port);
-	}
-
-	finfo.sock      = sock;
+	finfo.sock      = -1;
 	finfo.host_file = file;
 	finfo.host_name = host;
 	finfo.host_port = port;
 	finfo.outname   = outname;
+
+	if(wget_connect(&finfo))
+		goto bail;
 
 	ret = wgetfptr(&finfo);
 

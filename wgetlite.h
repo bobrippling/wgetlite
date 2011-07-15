@@ -28,6 +28,7 @@ struct wgetfile
 typedef int wgetfunc(struct wgetfile *);
 
 int wget(const char *url, int redirect_no);
+int wget_connect(struct wgetfile *);
 
 FILE *wget_open( struct wgetfile *, char *mode);
 FILE *wget_close_and_open(struct wgetfile *, FILE *, char *mode);

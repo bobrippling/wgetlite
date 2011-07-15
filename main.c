@@ -14,6 +14,9 @@
 
 #define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))
 
+/* #define USER_AGENT "wgetlite/0.9 (linux)"; */
+#define USER_AGENT NULL
+
 struct cfg global_cfg;
 const char *argv0;
 
@@ -62,7 +65,7 @@ int main(int argc, char **argv)
 	signal(SIGWINCH, term_winch);
 
 	global_cfg.prog_dot = !isatty(STDERR_FILENO);
-	global_cfg.user_agent = "wgetlite/0.9 (linux)";
+	global_cfg.user_agent = USER_AGENT;
 
 	while((ch = getopt(argc, argv, "vqdcfU:C:o:O:")) != -1)
 		switch(ch){
