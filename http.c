@@ -383,11 +383,10 @@ int http_GET(struct wgetfile *finfo)
 
 		ka = http_GET_find_line(lines, "Connection: ");
 
-		if(!strcasecmp(ka, "close"))
+		if(!ka || !strcasecmp(ka, "close"))
 			sock_close = 1;
-		else
-			ka = http_GET_find_line(lines, "Content-Length: ");
 
+		ka = http_GET_find_line(lines, "Content-Length: ");
 		if(sock_close || !ka){
 			/* we can't do keep-alive, since we don't know the amount to skip ahead etc etc */
 			free(headers[2]);
