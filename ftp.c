@@ -83,7 +83,7 @@ int ftp_RETR(struct wgetfile *finfo)
 	long fpos = 0;
 	extern struct cfg global_cfg;
 	char port[8], host[3 * 4 + 3 + 1] /* xxx.xxx.xxx.xxx */;
-	char *line, *ident;
+	char *line, *sptr;
 	size_t size;
 	int i, h[4], p[2];
 
@@ -92,11 +92,11 @@ int ftp_RETR(struct wgetfile *finfo)
 	FTP_READLINE();
 
 	/* some sort of id... */
-	ident = strchr(line, ' ');
-	if(!*ident++)
-		ident = line;
+	sptr = strchr(line, ' ');
+	if(!*sptr++)
+		sptr = line;
 
-	output_err(OUT_INFO, "FTP Server Ident: %s", ident);
+	output_err(OUT_INFO, "FTP Server Ident: %s", sptr);
 	free(line);
 
 	WRITE(finfo->sock, "USER anonymous\r\n");
@@ -159,10 +159,11 @@ login_fail:
 	}
 
 	/* parse the pasv reply for the address and ports */
-	if(sscanf(line, "227 Entering Passive Mode (%d,%d,%d,%d,%d,%d).",
+	sptr = strrchr(line, '(');
+	if(!sptr || sscanf(sptr, "(%d,%d,%d,%d,%d,%d)",
 				&h[0], &h[1], &h[2], &h[3], &p[0], &p[1]) != 6){
 		free(line);
-		output_err(OUT_ERR, "FTP PASV reply unparsable");
+		output_err(OUT_ERR, "FTP PASV reply unparsable (%s)", line);
 		return 1;
 	}
 
