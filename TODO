@@ -2,14 +2,9 @@ authentication:
 	http://bob:secret@download.com/file.tar.gz
 	ftp://tim:secret@download.com/file.bz2
 
-HTTP:
-	Persistent connections? Like wget - reuse connection to server?
-			struct conn
-			{
-				int sock;
-				char *host;
-			} *cons;
+proxy:
+	$HTTP_PROXY etc
 
-	Check Headers (Content-Disposition: attachment; filename="%s") for default filename (FIXME'd)
+Check Headers (Content-Disposition: attachment; filename="%s") for default filename (FIXME'd)
 
-	Exit code varies - 8 for HTTP 404, etc etc
+Exit code varies - 8 for HTTP 404, etc etc
