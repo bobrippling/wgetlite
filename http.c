@@ -305,7 +305,6 @@ int http_print_lines(char **list, int fd, int n)
 int http_GET(struct wgetfile *finfo)
 {
 	extern struct cfg global_cfg;
-	int sock_close = 0;
 	FILE *f;
 	long pos;
 	int nheaders;
@@ -320,9 +319,9 @@ int http_GET(struct wgetfile *finfo)
 		return 1;
 	}
 
-	headers[0] = allocprintf("HEAD %s HTTP/1.1", finfo->host_file);
+	headers[0] = allocprintf("GET %s HTTP/1.1", finfo->host_file);
 	headers[1] = allocprintf("Host: %s", finfo->host_name);
-	headers[2] = strdup("Connection: Keep-Alive");
+	headers[2] = strdup("Connection: Close");
 	hdidx = 3;
 
 	f = wget_open(finfo, NULL);
@@ -363,47 +362,6 @@ int http_GET(struct wgetfile *finfo)
 	}
 
 	headers[hdidx] = NULL;
-
-	{
-		char **lines;
-		char *ka;
-
-		if(http_print_lines(headers, finfo->sock, hdidx)){
-			http_free_lines(headers);
-			return 1;
-		}
-
-		lines = http_read_lines(finfo->sock);
-
-		if(!lines){
-			http_free_lines(lines);
-			http_free_lines(headers);
-			return 1;
-		}
-
-		ka = http_GET_find_line(lines, "Connection: ");
-
-		if(!ka || !strcasecmp(ka, "close"))
-			sock_close = 1;
-
-		ka = http_GET_find_line(lines, "Content-Length: ");
-		if(sock_close || !ka){
-			/* we can't do keep-alive, since we don't know the amount to skip ahead etc etc */
-			free(headers[2]);
-			headers[2] = strdup("Connection: close");
-		}
-
-		http_free_lines(lines);
-	}
-
-	free(headers[0]);
-	headers[0] = allocprintf("GET %s HTTP/1.1", finfo->host_file);
-
-	if(sock_close){
-		connection_close_fd(finfo->sock);
-		if(wget_connect(finfo))
-			return 1;
-	}
 
 	http_print_lines(headers, finfo->sock, hdidx);
 	http_free_lines(headers);
