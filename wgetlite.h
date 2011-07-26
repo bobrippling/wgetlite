@@ -8,10 +8,13 @@ struct cfg
 	const char *out_fname;
 	const char *user_agent;
 	FILE *logf;
+
+	const char *http_proxy, *http_proxy_port;
 };
 
 struct wgetfile
 {
+	enum { HTTP, FTP } proto;
 	int sock;
 	int redirect_no;
 	char *host_file, *host_name, *host_port;

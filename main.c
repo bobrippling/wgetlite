@@ -48,6 +48,32 @@ void verbosity_change(int dir)
 #undef v
 }
 
+void proxy()
+{
+	char *p;
+
+	p = getenv("HTTP_PROXY");
+	if(!p){
+		p = getenv("http_proxy");
+		if(!p)
+			p = "";
+	}
+
+	global_cfg.http_proxy = p;
+	p = strchr(p, ':');
+	if(p){
+		*p++ = '\0';
+		global_cfg.http_proxy_port = p;
+	}else{
+		global_cfg.http_proxy_port = "8080";
+	}
+
+	if(*global_cfg.http_proxy)
+		output_err(OUT_VERBOSE, "Using HTTP Proxy: %s:%s",
+			global_cfg.http_proxy,
+			global_cfg.http_proxy_port);
+}
+
 int main(int argc, char **argv)
 {
 	int ret = 0, ch;
@@ -117,6 +143,8 @@ usage:
 
 	if(cookie_fname)
 		cookies_load(cookie_fname);
+
+	proxy();
 
 	for(; optind < argc; optind++)
 		ret |= wget(argv[optind], 0);

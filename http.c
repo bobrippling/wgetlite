@@ -224,7 +224,12 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 					/* else no Content-Length, assume zero */
 
 
-					/* don't close the socket, just follow through (eurgh) */
+					/*
+					 * don't close the socket, just follow through (eurgh)
+					 *
+					 * disregard that, no more Connection: Keep-Alive
+					 */
+					connection_close_fd(finfo->sock);
 					ret = wget(to, finfo->redirect_no + 1);
 
 					free(to);
@@ -319,7 +324,7 @@ int http_GET(struct wgetfile *finfo)
 		return 1;
 	}
 
-	headers[0] = allocprintf("GET %s HTTP/1.1", finfo->host_file);
+	headers[0] = allocprintf("GET http://%s:%s%s HTTP/1.1", finfo->host_name, finfo->host_port, finfo->host_file);
 	headers[1] = allocprintf("Host: %s", finfo->host_name);
 	headers[2] = strdup("Connection: Close");
 	hdidx = 3;
@@ -328,8 +333,8 @@ int http_GET(struct wgetfile *finfo)
 	if(!f)
 		return 1;
 
-	output_err(OUT_VERBOSE, "HTTP: Request: GET %s HTTP/1.1 (Host: %s)",
-			finfo->host_file, finfo->host_name);
+	output_err(OUT_VERBOSE, "HTTP: %sRequest: GET %s HTTP/1.1 (Host: %s)",
+			*global_cfg.http_proxy ? "Proxy ":"", finfo->host_file, finfo->host_name);
 
 
 	if(global_cfg.partial && (pos = ftell(f)) > 0)

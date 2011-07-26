@@ -172,15 +172,23 @@ int wget_remove(struct wgetfile *finfo)
 
 int wget_connect(struct wgetfile *finfo)
 {
-	finfo->sock = connection_fd(finfo->host_name, finfo->host_port);
+	extern struct cfg global_cfg;
+	const char *host, *port;
+
+	if(finfo->proto == HTTP && *global_cfg.http_proxy)
+		host = global_cfg.http_proxy, port = global_cfg.http_proxy_port;
+	else
+		host = finfo->host_name, port = finfo->host_port;
+
+	finfo->sock = connection_fd(host, port);
 
 	if(finfo->sock == -1){
-		finfo->sock = dial(finfo->host_name, finfo->host_port);
+		finfo->sock = dial(host, port);
 		if(finfo->sock == -1)
 			return 1; /* dial() prints the error */
-		connection_add(finfo->sock, finfo->host_name, finfo->host_port);
+		connection_add(finfo->sock, host, port);
 	}else{
-		output_err(OUT_INFO, "Reusing connection to %s:%s", finfo->host_name, finfo->host_port);
+		output_err(OUT_INFO, "Reusing connection to %s:%s", host, port);
 	}
 	return 0;
 }
@@ -189,7 +197,6 @@ int wget(const char *url, int redirect_no)
 {
 	extern struct cfg global_cfg;
 	struct wgetfile finfo;
-	wgetfunc *wgetfptr;
 	int ret;
 	char *outname = NULL;
 	char *host, *file, *proto, *port;
@@ -206,9 +213,8 @@ int wget(const char *url, int redirect_no)
 	if(parseurl(url, &host, &file, &proto, &port))
 		return 1;
 
-	if(     !strcmp(proto, "http")) wgetfptr = http_GET;
-	else if(!strcmp(proto, "ftp"))  wgetfptr = ftp_RETR;
-	/*else if(!strcmp(proto, "file")) wgetfptr = file_copy;*/
+	if(     !strcmp(proto, "http")) finfo.proto = HTTP;
+	else if(!strcmp(proto, "ftp"))  finfo.proto = FTP;
 	else{
 		ret = 1;
 		output_err(OUT_ERR, "unknown protocol: %s", proto);
@@ -247,7 +253,7 @@ int wget(const char *url, int redirect_no)
 	if(wget_connect(&finfo))
 		goto bail;
 
-	ret = wgetfptr(&finfo);
+	ret = (finfo.proto == HTTP ? http_GET : ftp_RETR)(&finfo);
 
 fin:
 	/* don't close the connection - let connection_* handle it */
