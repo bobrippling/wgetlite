@@ -56,7 +56,7 @@ void proxy()
 	if(!p){
 		p = getenv("http_proxy");
 		if(!p)
-			p = "";
+			return;
 	}
 
 	global_cfg.http_proxy = p;
@@ -68,10 +68,9 @@ void proxy()
 		global_cfg.http_proxy_port = "8080";
 	}
 
-	if(*global_cfg.http_proxy)
-		output_err(OUT_VERBOSE, "Using HTTP Proxy: %s:%s",
-			global_cfg.http_proxy,
-			global_cfg.http_proxy_port);
+	output_err(OUT_VERBOSE, "Using HTTP Proxy: %s:%s",
+		global_cfg.http_proxy,
+		global_cfg.http_proxy_port);
 }
 
 int main(int argc, char **argv)

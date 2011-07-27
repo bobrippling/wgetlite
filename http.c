@@ -314,6 +314,7 @@ int http_GET(struct wgetfile *finfo)
 	long pos;
 	int nheaders;
 	char **headers;
+	char *get_req;
 	int hdidx;
 
 	nheaders = 16;
@@ -324,7 +325,15 @@ int http_GET(struct wgetfile *finfo)
 		return 1;
 	}
 
-	headers[0] = allocprintf("GET http://%s:%s%s HTTP/1.1", finfo->host_name, finfo->host_port, finfo->host_file);
+	if(global_cfg.http_proxy){
+		get_req = allocprintf("http://%s:%s%s",
+			finfo->host_name, finfo->host_port, finfo->host_file);
+	}else{
+		get_req = strdup(finfo->host_file);
+	}
+
+	headers[0] = allocprintf("GET %s HTTP/1.1", get_req);
+	free(get_req);
 	headers[1] = allocprintf("Host: %s", finfo->host_name);
 	headers[2] = strdup("Connection: Close");
 	hdidx = 3;
@@ -334,7 +343,8 @@ int http_GET(struct wgetfile *finfo)
 		return 1;
 
 	output_err(OUT_VERBOSE, "HTTP: %sRequest: GET %s HTTP/1.1 (Host: %s)",
-			*global_cfg.http_proxy ? "Proxy ":"", finfo->host_file, finfo->host_name);
+			global_cfg.http_proxy ? "Proxy ":"",
+			finfo->host_file, finfo->host_name);
 
 
 	if(global_cfg.partial && (pos = ftell(f)) > 0)
