@@ -109,7 +109,7 @@ int main(int argc, char **argv)
 
 			default:
 usage:
-				fprintf(stderr,
+				output_err(OUT_ERR,
 						"Usage: %s [OPTS] url\n"
 						" -v: Increase Verboseness\n"
 						" -q: Decrease Verboseness\n"
@@ -125,7 +125,10 @@ usage:
 		}
 
 	if(optind == argc){
-		fprintf(stderr, "need url(s)\n");
+		output_err(OUT_ERR, "need url(s)");
+		goto usage;
+	}else if(global_cfg.out_fname && optind - argc > 1){
+		output_err(OUT_ERR, "can't save all to \"%s\"", global_cfg.out_fname);
 		goto usage;
 	}
 

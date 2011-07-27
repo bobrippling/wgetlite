@@ -61,7 +61,7 @@ char **http_read_lines(int sock)
 	lines[0] = NULL;
 
 	do{
-		if(!(lines[curline] = readline(sock))){
+		if(!(lines[curline] = fdreadline(sock))){
 			http_free_lines(lines);
 			return NULL;
 		}
@@ -143,9 +143,20 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 			if(end){
 				*end = '\0';
 				output_err(OUT_INFO, "HTTP: Using server name: \"%s\"", name);
-				/* FIXME: relink to name */
-			}else
-				name = NULL;
+
+				wget_close(finfo, f);
+				wget_remove(finfo);
+
+				if(finfo->outname)
+					free(finfo->outname);
+				finfo->outname = ustrdup(name);
+				finfo->namemode = NAME_AUTH;
+
+				/* rename */
+				f = wget_open(finfo, NULL);
+				if(!f)
+					goto die;
+			}
 		}
 	}
 
@@ -289,7 +300,10 @@ die:
 		http_free_lines(lines);
 	if(len_transfer)
 		connection_discard_data(finfo->sock, len_transfer);
-	wget_remove_if_empty(finfo, f);
+	if(f){
+		wget_remove_if_empty(finfo, f);
+		wget_close(finfo, f);
+	}
 	return 1;
 }
 
@@ -326,15 +340,15 @@ int http_GET(struct wgetfile *finfo)
 	}
 
 	if(global_cfg.http_proxy){
-		get_req = allocprintf("http://%s:%s%s",
+		get_req = ustrprintf("http://%s:%s%s",
 			finfo->host_name, finfo->host_port, finfo->host_file);
 	}else{
 		get_req = strdup(finfo->host_file);
 	}
 
-	headers[0] = allocprintf("GET %s HTTP/1.1", get_req);
+	headers[0] = ustrprintf("GET %s HTTP/1.1", get_req);
 	free(get_req);
-	headers[1] = allocprintf("Host: %s", finfo->host_name);
+	headers[1] = ustrprintf("Host: %s", finfo->host_name);
 	headers[2] = strdup("Connection: Close");
 	hdidx = 3;
 
@@ -348,7 +362,7 @@ int http_GET(struct wgetfile *finfo)
 
 
 	if(global_cfg.partial && (pos = ftell(f)) > 0)
-		headers[hdidx++] = allocprintf("Range: bytes=%ld-", pos);
+		headers[hdidx++] = ustrprintf("Range: bytes=%ld-", pos);
 		/*
 		 * no need to check for "Accept-Ranges: bytes" header
 		 * since we can check for 200-OK later on
@@ -356,7 +370,7 @@ int http_GET(struct wgetfile *finfo)
 
 
 	if(global_cfg.user_agent){
-		headers[hdidx++] = allocprintf("User-Agent: %s", global_cfg.user_agent);
+		headers[hdidx++] = ustrprintf("User-Agent: %s", global_cfg.user_agent);
 		output_err(OUT_DEBUG, "HTTP: User Agent \"%s\"", global_cfg.user_agent);
 	}
 
@@ -366,7 +380,7 @@ int http_GET(struct wgetfile *finfo)
 
 		for(start = c = cookies_get(finfo->host_name); c; c = c->next){
 			output_err(OUT_DEBUG, "HTTP: Cookie: %s=%s", c->nam, c->val);
-			headers[hdidx++] = allocprintf("Cookie: %s=%s", c->nam, c->val);
+			headers[hdidx++] = ustrprintf("Cookie: %s=%s", c->nam, c->val);
 			if(hdidx == nheaders-2){
 				output_err(OUT_WARN, "Too many cookies");
 				break;

@@ -155,14 +155,7 @@ int wget_remove_if_empty(struct wgetfile *finfo, FILE *f)
 {
 	if(ftell(f) > 0)
 		return 0;
-	wget_close(finfo, f);
 	return wget_remove(finfo);
-}
-
-FILE *wget_close_and_open(struct wgetfile *finfo, FILE *f, char *mode)
-{
-	wget_close_verbose(finfo, f, 0);
-	return wget_open(finfo, mode);
 }
 
 int wget_remove(struct wgetfile *finfo)

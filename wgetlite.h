@@ -34,12 +34,10 @@ int wget(const char *url, int redirect_no);
 int wget_connect(struct wgetfile *);
 
 FILE *wget_open( struct wgetfile *, char *mode);
-FILE *wget_close_and_open(struct wgetfile *, FILE *, char *mode);
-
 int   wget_close(struct wgetfile *, FILE *);
-int   wget_remove_if_empty(struct wgetfile *finfo, FILE *f);
 
 int   wget_remove(struct wgetfile *);
+int   wget_remove_if_empty(struct wgetfile *, FILE *);
 
 void  wget_success(struct wgetfile *);
 

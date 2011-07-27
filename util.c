@@ -28,7 +28,7 @@ long mstime()
 	return tv.tv_usec / 1000 + tv.tv_sec * 1000;
 }
 
-char *strdup(const char *s)
+char *ustrdup(const char *s)
 {
 	unsigned int siz = strlen(s) + 1;
 	char *d = malloc(siz);
@@ -45,7 +45,7 @@ FILE *fdup(FILE *f, char *mode)
 	return fdopen(fileno(f), mode);
 }
 
-char *readline(int sock)
+char *fdreadline(int sock)
 {
 	static char buffer[BSIZ];
 	char *pos;
@@ -250,19 +250,19 @@ fin:
 	return ret;
 }
 
-const char *strfin(const char *s, const char *postfix)
+const char *strfin(const char *s, const char *suffix)
 {
 	char *p = strchr(s, '\0');
-	unsigned int l = strlen(postfix);
+	unsigned int l = strlen(suffix);
 
 	if(l > strlen(s))
 		return NULL;
 
 	p -= l;
-	return strcmp(p, postfix) ? NULL : p;
+	return strcmp(p, suffix) ? NULL : p;
 }
 
-char *allocprintf(const char *fmt, ...)
+char *ustrprintf(const char *fmt, ...)
 {
 	va_list l;
 	int n;

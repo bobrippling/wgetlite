@@ -55,7 +55,7 @@ char *ftp_findhyphen(char *line)
 
 char *ftp_readline(int sock)
 {
-	char *line = readline(sock), *hyphen;
+	char *line = fdreadline(sock), *hyphen;
 
 	if(!line){
 		output_err(OUT_ERR, "Premature end-of-stream");
@@ -66,7 +66,7 @@ char *ftp_readline(int sock)
 		/* extended response */
 		do{
 			free(line);
-			line = readline(sock);
+			line = fdreadline(sock);
 			if(!(hyphen = ftp_findhyphen(line)))
 				break;
 			else
