@@ -1,2 +1,2 @@
-DESTDIR   = /usr/
-MANPREFIX = /share/man/
+DESTDIR   = /usr/local
+MANPREFIX = ${PREFIX}/share/man
