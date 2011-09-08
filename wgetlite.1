@@ -1,0 +1,53 @@
+.TH WGETLITE 1 wgetlite\-VERSION
+.SH NAME
+wgetlite \- simple HTTP and FTP downloader
+.SH SYNOPSIS
+.B wgetlite
+.RB [ OPTS ]
+.RB URLs...
+.SH DESCRIPTION
+wgetlite is a utility for downloading files from the internet. It supports HTTP
+and FTP. HTTP support includes proxies.
+.P
+HTTP links are followed and some attempt has been made at keeping a connection
+open with HTTP 1.1's keep-alive functionality. wgetlite attempts to copy wget's
+flags in an attempt to keep users familiar.
+.SH OPTIONS
+.TP
+.B \-v
+Increase verboseness
+.TP
+.B \-q
+Decrease verboseness
+.TP
+.B \-d
+Dot-style progress display
+.TP
+.B \-c
+Attempt to resume download
+.TP
+.B \-U
+Specify user-agent, or disable if an empty string
+.TP
+.B \-C file
+Specify cookie file
+.TP
+.B \-o file
+Log to file, or stdout if "\-"
+.TP
+.B \-O file
+Save to file, or stdout if "\-"
+.TP
+.B \-f
+Overwrite existing files
+.SH NOTES
+wgetlite will abort a resume attempt if there are complications, such as the
+file size reported by the server being less than the local (part) file size.
+This keeps your precious, precious anime safe, you basement dweller.
+.P
+This \fBis\fR the complete manual for wgetlite. wgetlite is not a massive
+program with millions of options, nor is the authour a fan of `info`.  At all.
+.SH SEE ALSO
+.BR wget (1)
+.SH BUGS
+Most likely. Probably in the HTTP code.

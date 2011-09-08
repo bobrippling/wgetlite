@@ -1,8 +1,23 @@
-CFLAGS = -Wall -Wextra -pedantic -g -std=c99 -D_POSIX_SOURCE -D_POSIX_C_SOURCE=200809L
+CFLAGS  = -Wall -Wextra -pedantic -g -std=c99 -D_POSIX_SOURCE -D_POSIX_C_SOURCE=200809L
+VERSION = 1.0
+
+include config.mk
 
 wgetlite: main.o wgetlite.o http.o progress.o util.o \
 	ftp.o output.o term.o cookies.o connections.o
 	${CC} -o $@ $^
+
+install: wgetlite
+	mkdir -p ${DESTDIR}${PREFIX}/bin
+	cp -f wgetlite ${DESTDIR}${PREFIX}/bin
+	@chmod 755 ${DESTDIR}${PREFIX}/bin/wgetlite
+	mkdir -p ${DESTDIR}${MANPREFIX}/man1
+	sed "s/VERSION/${VERSION}/g" < wgetlite.1 > ${DESTDIR}${MANPREFIX}/man1/wgetlite.1
+	@chmod 644 ${DESTDIR}${MANPREFIX}/man1/wgetlite.1
+
+uninstall:
+	rm -f ${DESTDIR}${PREFIX}/bin/wgetlite
+	rm -f ${DESTDIR}${MANPREFIX}/man1/wgetlite.1
 
 clean:
 	rm -f *.o wgetlite
