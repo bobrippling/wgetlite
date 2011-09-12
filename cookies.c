@@ -2,7 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#ifndef __FreeBSD__
 #include <alloca.h>
+#endif
 
 #include "cookies.h"
 #include "output.h"

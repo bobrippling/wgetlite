@@ -1,12 +1,15 @@
+# to compile on FreeBSD, comment out all CFLAGS
 CFLAGS  = -Wall -Wextra -pedantic -g -std=c99 -D_POSIX_C_SOURCE=200809L
 VERSION = 1.1
 
-include config.mk
-
-wgetlite: main.o wgetlite.o http.o progress.o util.o \
+OBJ = main.o wgetlite.o http.o progress.o util.o \
 	ftp.o output.o term.o cookies.o connections.o \
 	gopher.o
-	${CC} -o $@ $^
+
+include config.mk
+
+wgetlite: ${OBJ}
+	${CC} -o $@ ${OBJ}
 
 install: wgetlite
 	mkdir -p ${DESTDIR}${PREFIX}/bin

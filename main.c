@@ -119,7 +119,7 @@ usage:
 						" -C: Specify Cookie file\n"
 						" -o: Log to file\n"
 						" -O: Save to file\n"
-						" -f: Overwrite files\n"
+						" -f: Overwrite files"
 						, *argv);
 				return 1;
 		}

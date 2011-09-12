@@ -3,7 +3,9 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <signal.h>
+#ifndef __FreeBSD__
 #include <alloca.h>
+#endif
 
 #include <unistd.h>
 
