@@ -12,9 +12,10 @@ install: wgetlite
 	mkdir -p ${DESTDIR}${PREFIX}/bin
 	cp -f wgetlite ${DESTDIR}${PREFIX}/bin
 	@chmod 755 ${DESTDIR}${PREFIX}/bin/wgetlite
-	mkdir -p ${DESTDIR}${MANPREFIX}/man1
-	sed "s/VERSION/${VERSION}/g" < wgetlite.1 > ${DESTDIR}${MANPREFIX}/man1/wgetlite.1
-	@chmod 644 ${DESTDIR}${MANPREFIX}/man1/wgetlite.1
+
+	mkdir -p ${MANPREFIX}/man1
+	sed "s/VERSION/${VERSION}/g" < wgetlite.1 > ${MANPREFIX}/man1/wgetlite.1
+	@chmod 644 ${MANPREFIX}/man1/wgetlite.1
 
 uninstall:
 	rm -f ${DESTDIR}${PREFIX}/bin/wgetlite
