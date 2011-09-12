@@ -1,4 +1,4 @@
-CFLAGS  = -Wall -Wextra -pedantic -g -std=c99 -D_POSIX_SOURCE -D_POSIX_C_SOURCE=200809L
+CFLAGS  = -Wall -Wextra -pedantic -g -std=c99 -D_POSIX_C_SOURCE=200809L
 VERSION = 1.0
 
 include config.mk
