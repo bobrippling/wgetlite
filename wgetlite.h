@@ -14,7 +14,7 @@ struct cfg
 
 struct wgetfile
 {
-	enum { HTTP, FTP } proto;
+	enum { HTTP, FTP, GOPHER } proto;
 	int sock;
 	int redirect_no;
 	char *host_file, *host_name, *host_port;

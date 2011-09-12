@@ -1,7 +1,8 @@
 WGetLite
 --------
 
-A clone of wget, intended to be small on features.
+A wget compatible/curl lookalike, intended to be small on features.
+(Not cloned from wget... imagine trying to filter the good out of all that code)
 
-Supports HTTP and FTP, resume-able downloading, HTTP User-Agent spoofing,
+Supports HTTP, FTP and Gopher, resume-able downloading, HTTP User-Agent "spoofing",
 HTTP cookie loading (for those pesky video sites), and ... that's about it.

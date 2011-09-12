@@ -12,6 +12,7 @@
 
 #include "http.h"
 #include "ftp.h"
+#include "gopher.h"
 
 #include "util.h"
 #include "term.h"
@@ -27,10 +28,13 @@
 
 char *proto_default_port(const char *proto)
 {
-	static char port_ftp[] = "21", port_http[] = "80";
+	static char port_ftp[] = "21", port_http[] = "80",
+		    port_gopher[] = "70";
 
 	if(!strcmp(proto, "ftp"))
 		return port_ftp;
+	if(!strcmp(proto, "gopher"))
+		return port_gopher;
 
 	return port_http;
 }
@@ -209,6 +213,7 @@ int wget(const char *url, int redirect_no)
 
 	if(     !strcmp(proto, "http")) finfo.proto = HTTP;
 	else if(!strcmp(proto, "ftp"))  finfo.proto = FTP;
+	else if(!strcmp(proto, "gopher")) finfo.proto = GOPHER;
 	else{
 		ret = 1;
 		output_err(OUT_ERR, "unknown protocol: %s", proto);
@@ -247,7 +252,18 @@ int wget(const char *url, int redirect_no)
 	if(wget_connect(&finfo))
 		goto bail;
 
-	ret = (finfo.proto == HTTP ? http_GET : ftp_RETR)(&finfo);
+	switch(finfo.proto) {
+	default:
+	case HTTP:
+		ret = http_GET(&finfo);
+		break;
+	case FTP:
+		ret = ftp_RETR(&finfo);
+		break;
+	case GOPHER:
+		ret = gopher_retrieve(&finfo);
+		break;
+	}
 
 fin:
 	/* don't close the connection - let connection_* handle it */

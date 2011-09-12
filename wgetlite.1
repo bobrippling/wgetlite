@@ -1,13 +1,13 @@
 .TH WGETLITE 1 wgetlite\-VERSION
 .SH NAME
-wgetlite \- simple HTTP and FTP downloader
+wgetlite \- simple HTTP, FTP and Gopher downloader
 .SH SYNOPSIS
 .B wgetlite
 .RB [ OPTS ]
 .RB URLs...
 .SH DESCRIPTION
-wgetlite is a utility for downloading files from the internet. It supports HTTP
-and FTP. HTTP support includes proxies.
+wgetlite is a utility for downloading files from the internet. It supports HTTP,
+Gopher and FTP. HTTP support includes proxies.
 .P
 HTTP links are followed and some attempt has been made at keeping a connection
 open with HTTP 1.1's keep-alive functionality. wgetlite attempts to copy wget's
@@ -48,6 +48,6 @@ This keeps your precious, precious anime safe, you basement dweller.
 This \fBis\fR the complete manual for wgetlite. wgetlite is not a massive
 program with millions of options, nor is the authour a fan of `info`.  At all.
 .SH SEE ALSO
-.BR wget (1)
+.BR wget (1), curl (1)
 .SH BUGS
 Most likely. Probably in the HTTP code.

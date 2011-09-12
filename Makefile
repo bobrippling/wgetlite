@@ -1,10 +1,11 @@
 CFLAGS  = -Wall -Wextra -pedantic -g -std=c99 -D_POSIX_C_SOURCE=200809L
-VERSION = 1.0
+VERSION = 1.1
 
 include config.mk
 
 wgetlite: main.o wgetlite.o http.o progress.o util.o \
-	ftp.o output.o term.o cookies.o connections.o
+	ftp.o output.o term.o cookies.o connections.o \
+	gopher.o
 	${CC} -o $@ $^
 
 install: wgetlite
