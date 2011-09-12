@@ -72,15 +72,18 @@ int cookies_load(const char *fname)
 
 					NEW_COOKIE(*cur_cookie);
 					c = *cur_cookie;
-					c->host = strdup(host);
-					c->nam = strdup(nam);
-					c->val = strdup(val);
-				}else
+					c->host = xstrdup(host);
+					c->nam = xstrdup(nam);
+					c->val = xstrdup(val);
+				}else{
 					MAL_LINE("No value");
-			}else
+				}
+			}else{
 				MAL_LINE("No name");
-		}else
+			}
+		}else{
 			MAL_LINE("No host");
+		}
 
 		cur_cookie = &c->next;
 	}
@@ -105,18 +108,18 @@ void cookies_end(void)
 }
 
 
-struct cookie *cookies_get(const char *host2)
+struct cookie *cookies_get(const char *host)
 {
 	struct cookie *c, *ret, *iter;
-	char *host = alloca(strlen(host2) + 2);
+	char *qualhost = alloca(strlen(host) + 2);
 
-	sprintf(host, ".%s", host2);
+	sprintf(qualhost, ".%s", host);
 
 	NEW_COOKIE(ret);
 	iter = ret;
 
 	for(c = cookies; c; c = c->next)
-		if(strfin(host, c->host)){
+		if(strfin(qualhost, c->host)){
 			memcpy(iter, c, sizeof *iter);
 			NEW_COOKIE(iter->next);
 			iter = iter->next;

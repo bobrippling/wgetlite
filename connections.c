@@ -59,8 +59,8 @@ int connection_add(int fd, const char *host, const char *port)
 	}
 
 	c->fd = fd;
-	c->host = strdup(host);
-	c->port = strdup(port);
+	c->host = xstrdup(host);
+	c->port = xstrdup(port);
 
 	c->next = conns;
 	conns = c;
@@ -80,7 +80,8 @@ void connection_fin(void)
 	}
 }
 
-void connection_close_private(struct connection *c)
+/* not used externally */
+static void connection_close_private(struct connection *c)
 {
 	CLOSE(c->fd);
 	c->fd = -1;

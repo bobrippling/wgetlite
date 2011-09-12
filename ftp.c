@@ -69,8 +69,7 @@ char *ftp_readline(int sock)
 			line = fdreadline(sock);
 			if(!(hyphen = ftp_findhyphen(line)))
 				break;
-			else
-				output_err(OUT_VERBOSE, "Server Info: \"%s\"", hyphen + 1);
+			output_err(OUT_VERBOSE, "Server Info: \"%s\"", hyphen + 1);
 		}while(1);
 	}
 

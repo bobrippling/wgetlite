@@ -20,6 +20,11 @@
 
 #define BSIZ 4096
 
+static void alloc_die(unsigned int len)
+{
+	output_err(OUT_ERR, "Couldn't allocate %ud bytes", len);
+	exit(1);
+}
 
 long mstime()
 {
@@ -28,21 +33,14 @@ long mstime()
 	return tv.tv_usec / 1000 + tv.tv_sec * 1000;
 }
 
-char *ustrdup(const char *s)
+char *xstrdup(const char *s)
 {
 	unsigned int siz = strlen(s) + 1;
 	char *d = malloc(siz);
-	if(!d){
-		output_err(OUT_ERR, "Couldn't allocate %ud bytes", siz);
-		exit(1);
-	}
+	if(!d)
+		alloc_die(siz);
 	strcpy(d, s);
 	return d;
-}
-
-FILE *fdup(FILE *f, char *mode)
-{
-	return fdopen(fileno(f), mode);
 }
 
 char *fdreadline(int sock)
@@ -182,9 +180,10 @@ end_of_stream:
 						progress_incomplete();
 						RET(1);
 					}
-				}else
+				}else{
 					/* no length, assume we have the whole file */
 					RET(0);
+				}
 				/* unreachable */
 
 			default:
@@ -262,7 +261,7 @@ const char *strfin(const char *s, const char *suffix)
 	return strcmp(p, suffix) ? NULL : p;
 }
 
-char *ustrprintf(const char *fmt, ...)
+char *xstrprintf(const char *fmt, ...)
 {
 	va_list l;
 	int n;
@@ -274,7 +273,7 @@ char *ustrprintf(const char *fmt, ...)
 
 	buf = malloc(n + 2);
 	if(!buf)
-		return NULL;
+		alloc_die(n + 2);
 
 	va_start(l, fmt);
 	vsnprintf(buf, n + 1, fmt, l);
@@ -294,7 +293,10 @@ int discard(int fd, int len)
 		if(amt > len)
 			amt = len;
 
+restart:
 		n = recv(fd, bin, amt, 0);
+		if(n == -1 && errno == EINTR)
+			goto restart;
 		if(n <= 0)
 			return 1;
 

@@ -128,8 +128,9 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 		char **iter;
 		for(iter = lines; *iter; iter++)
 			output_err(OUT_VERBOSE, "HTTP: Header: %s", *iter);
-	}else
+	}else{
 		output_err(OUT_INFO, "HTTP: Reply: %s", *lines);
+	}
 
 
 	if(finfo->namemode == NAME_GUESS &&
@@ -149,7 +150,7 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 
 				if(finfo->outname)
 					free(finfo->outname);
-				finfo->outname = ustrdup(name);
+				finfo->outname = xstrdup(name);
 				finfo->namemode = NAME_AUTH;
 
 				/* rename */
@@ -164,14 +165,14 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 	if((hdr = http_GET_find_line(lines, "Content-Length: ")) && sscanf(hdr, "%zu", &len_transfer) != 1)
 		output_err(OUT_WARN, "HTTP: Content-Length unparseable");
 
-	if(400 <= http_code && http_code < 600)
+	if(400 <= http_code && http_code < 600){
 		if(http_code == HTTP_NOT_SATISFIABLE){
 			output_err(OUT_INFO, "HTTP: Already fully downloaded");
 			return 0;
 		}else{
 			goto die;
 		}
-	else
+	}else{
 		switch(http_code){
 			case HTTP_OK:
 				if(global_cfg.partial && ftell(f) > 0){
@@ -247,12 +248,13 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 					http_free_lines(lines);
 
 					return ret;
-				}else
+				}else{
 					output_err(OUT_WARN, "HTTP: Couldn't find Location header, continuing");
-
+				}
 				break;
 			}
 		}
+	}
 
 	pos = ftell(f);
 	if(pos == -1)
@@ -286,10 +288,12 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 					output_err(OUT_ERR, "HTTP: Unsupported Content-Range");
 					goto die;
 				}
-			}else
+			}else{
 				output_err(OUT_WARN, "HTTP: Couldn't parse Content-Range \"%s\"", hdr);
-		}else if(global_cfg.partial)
+			}
+		}else if(global_cfg.partial){
 			output_err(OUT_WARN, "HTTP: No Content-Range header");
+		}
 	}
 
 	http_free_lines(lines);
@@ -340,16 +344,16 @@ int http_GET(struct wgetfile *finfo)
 	}
 
 	if(global_cfg.http_proxy){
-		get_req = ustrprintf("http://%s:%s%s",
+		get_req = xstrprintf("http://%s:%s%s",
 			finfo->host_name, finfo->host_port, finfo->host_file);
 	}else{
-		get_req = strdup(finfo->host_file);
+		get_req = xstrdup(finfo->host_file);
 	}
 
-	headers[0] = ustrprintf("GET %s HTTP/1.1", get_req);
+	headers[0] = xstrprintf("GET %s HTTP/1.1", get_req);
 	free(get_req);
-	headers[1] = ustrprintf("Host: %s", finfo->host_name);
-	headers[2] = strdup("Connection: Close");
+	headers[1] = xstrprintf("Host: %s", finfo->host_name);
+	headers[2] = xstrdup("Connection: Close");
 	hdidx = 3;
 
 	f = wget_open(finfo, NULL);
@@ -362,7 +366,7 @@ int http_GET(struct wgetfile *finfo)
 
 
 	if(global_cfg.partial && (pos = ftell(f)) > 0)
-		headers[hdidx++] = ustrprintf("Range: bytes=%ld-", pos);
+		headers[hdidx++] = xstrprintf("Range: bytes=%ld-", pos);
 		/*
 		 * no need to check for "Accept-Ranges: bytes" header
 		 * since we can check for 200-OK later on
@@ -370,7 +374,7 @@ int http_GET(struct wgetfile *finfo)
 
 
 	if(global_cfg.user_agent){
-		headers[hdidx++] = ustrprintf("User-Agent: %s", global_cfg.user_agent);
+		headers[hdidx++] = xstrprintf("User-Agent: %s", global_cfg.user_agent);
 		output_err(OUT_DEBUG, "HTTP: User Agent \"%s\"", global_cfg.user_agent);
 	}
 
@@ -380,7 +384,7 @@ int http_GET(struct wgetfile *finfo)
 
 		for(start = c = cookies_get(finfo->host_name); c; c = c->next){
 			output_err(OUT_DEBUG, "HTTP: Cookie: %s=%s", c->nam, c->val);
-			headers[hdidx++] = ustrprintf("Cookie: %s=%s", c->nam, c->val);
+			headers[hdidx++] = xstrprintf("Cookie: %s=%s", c->nam, c->val);
 			if(hdidx == nheaders-2){
 				output_err(OUT_WARN, "Too many cookies");
 				break;

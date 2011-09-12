@@ -51,11 +51,11 @@ int parseurl(const char *url,
 
 	if((host = strstr(url, "://"))){
 		*host = '\0';
-		host  = strdup(host + 3);
-		proto = strdup(url);
+		host  = xstrdup(host + 3);
+		proto = xstrdup(url);
 	}else{
-		host = strdup(url);
-		proto = strdup("http");
+		host = xstrdup(url);
+		proto = xstrdup("http");
 	}
 
 	if(*host == '/'){
@@ -67,17 +67,17 @@ int parseurl(const char *url,
 
 		if(file){
 			char *slash = file;
-			file = strdup(file);
+			file = xstrdup(file);
 			*slash = '\0';
 		}else{
-			file = strdup("/");
+			file = xstrdup("/");
 		}
 
 		if((port = strrchr(host, ':')))
 			*port++ = '\0';
 		else
 			port = proto_default_port(proto);
-		port = strdup(port);
+		port = xstrdup(port);
 	}
 
 	return 0;
@@ -97,7 +97,7 @@ FILE *wget_open(struct wgetfile *finfo, char *mode)
 			finfo->outname[PATH_MAX - 1] = '\0';
 		else if(!*finfo->outname){
 			free(finfo->outname);
-			finfo->outname = strdup("index.html");
+			finfo->outname = xstrdup("index.html");
 		}
 
 		/* if not explicitly specified, check for finfo->outname overwrites */
@@ -114,8 +114,9 @@ FILE *wget_open(struct wgetfile *finfo, char *mode)
 			output_err(OUT_ERR, "open: \"%s\": %s", finfo->outname, strerror(errno));
 
 		return ret;
-	}else
+	}else{
 		return stdout;
+	}
 }
 
 int wget_close_verbose(struct wgetfile *finfo, FILE *f, int verbose)
@@ -220,7 +221,7 @@ int wget(const char *url, int redirect_no)
 		if(!strcmp(global_cfg.out_fname, "-"))
 			outname = NULL;
 		else
-			outname = strdup(global_cfg.out_fname);
+			outname = xstrdup(global_cfg.out_fname);
 
 		finfo.namemode = NAME_FORCE;
 	}else{
@@ -228,9 +229,9 @@ int wget(const char *url, int redirect_no)
 
 		the_last_slash_rated_pg_for_parental_guidance = strrchr(file, '/');
 		if(the_last_slash_rated_pg_for_parental_guidance)
-			outname = strdup(the_last_slash_rated_pg_for_parental_guidance + 1);
+			outname = xstrdup(the_last_slash_rated_pg_for_parental_guidance + 1);
 		else
-			outname = strdup(file);
+			outname = xstrdup(file);
 
 		finfo.namemode = NAME_GUESS;
 

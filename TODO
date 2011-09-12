@@ -2,9 +2,6 @@ authentication:
 	http://bob:secret@download.com/file.tar.gz
 	ftp://tim:secret@download.com/file.bz2
 
-proxy:
-	$HTTP_PROXY etc
-
-Check Headers (Content-Disposition: attachment; filename="%s") for default filename (FIXME'd)
-
 Exit code varies - 8 for HTTP 404, etc etc
+
+Recursive HTTP
