@@ -127,7 +127,7 @@ usage:
 	if(optind == argc){
 		output_err(OUT_ERR, "need url(s)");
 		goto usage;
-	}else if(global_cfg.out_fname && optind - argc > 1){
+	}else if(global_cfg.out_fname && argc - optind > 1){
 		output_err(OUT_ERR, "can't save all to \"%s\"", global_cfg.out_fname);
 		goto usage;
 	}
