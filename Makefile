@@ -1,4 +1,5 @@
 # to compile on FreeBSD, comment out all CFLAGS
+# to compile on Darwin/Mac, add -D_DARWIN_C_SOURCE
 CFLAGS  = -Wall -Wextra -pedantic -g -std=c99 -D_POSIX_C_SOURCE=200809L
 VERSION = 1.1
 
