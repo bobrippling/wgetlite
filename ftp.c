@@ -37,7 +37,7 @@ int ftp_download(struct wgetfile *finfo, FILE *out,
 		return 1;
 
 	finfo->sock = sock;
-	ret = generic_transfer(finfo, out, len, offset);
+	ret = generic_transfer(finfo, out, len, offset, 1);
 	close(oldsock);
 	return ret;
 }

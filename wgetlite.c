@@ -115,7 +115,7 @@ FILE *wget_open(struct wgetfile *finfo, char *mode)
 			return NULL;
 		}
 
-		ret = fopen(finfo->outname, mode ? mode : (global_cfg.partial ? "a" : "w"));
+		ret = fopen(finfo->outname, mode ? mode : (global_cfg.partial ? "a+" : "w+"));
 		if(!ret)
 			output_err(OUT_ERR, "open: \"%s\": %s", finfo->outname, strerror(errno));
 

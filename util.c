@@ -139,7 +139,8 @@ retry:
 	return sock;
 }
 
-int generic_transfer(struct wgetfile *finfo, FILE *out, size_t len, size_t sofar)
+int generic_transfer(struct wgetfile *finfo, FILE *out, size_t len,
+		size_t sofar, int closefd)
 {
 #define RET(n) do{ ret = n; goto fin; }while(0)
 	int ret = 0;
@@ -242,9 +243,11 @@ fin:
 	else
 		progress_fin(0, 0);
 
-	ret |= wget_close(finfo, out);
-	if(!ret)
-		wget_success(finfo);
+	if(closefd) {
+		ret |= wget_close(finfo, out);
+		if(!ret)
+			wget_success(finfo);
+	}
 
 	return ret;
 }

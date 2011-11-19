@@ -21,7 +21,8 @@ int   dial(const char *host, const char *port); /* shake it all about */
 
 
 /* transfer however many bytes needed on a socket */
-int generic_transfer(struct wgetfile *finfo, FILE *out, size_t len, size_t sofar);
+int generic_transfer(struct wgetfile *finfo, FILE *out, size_t len,
+		size_t sofar, int closefd);
 
 
 /* read len bytes from fd, checking for interrupts, etc */

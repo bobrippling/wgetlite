@@ -298,7 +298,7 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 
 	http_free_lines(lines);
 
-	return generic_transfer(finfo, f, pos + len_transfer, pos);
+	return generic_transfer(finfo, f, pos + len_transfer, pos, 1);
 die:
 	if(lines)
 		http_free_lines(lines);
