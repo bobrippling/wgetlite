@@ -11,6 +11,7 @@
 #include "term.h"
 #include "cookies.h"
 #include "connections.h"
+#include "ssl.h"
 
 #define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))
 
@@ -152,6 +153,7 @@ usage:
 		ret |= wget(argv[optind], 0);
 
 	connection_fin();
+	ssl_termintate();
 
 	return ret;
 }

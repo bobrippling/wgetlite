@@ -10,7 +10,7 @@
 #include "ftp.h"
 #include "util.h"
 
-#define WRITE(fd, str) write(fd, str, strlen(str))
+#define WRITE(fd, str) wget_write(fd, str, strlen(str))
 
 #define FTP_FILE_STATUS        213
 #define FTP_ENTER_PASSIVE_MODE 227
@@ -53,9 +53,9 @@ char *ftp_findhyphen(char *line)
 	return NULL;
 }
 
-char *ftp_readline(int sock)
+char *ftp_readline(struct wgetfile *finfo)
 {
-	char *line = fdreadline(sock), *hyphen;
+	char *line = wget_readline(finfo), *hyphen;
 
 	if(!line){
 		output_err(OUT_ERR, "Premature end-of-stream");
@@ -66,7 +66,7 @@ char *ftp_readline(int sock)
 		/* extended response */
 		do{
 			free(line);
-			line = fdreadline(sock);
+			line = wget_readline(finfo);
 			if(!(hyphen = ftp_findhyphen(line)))
 				break;
 			output_err(OUT_VERBOSE, "Server Info: \"%s\"", hyphen + 1);
@@ -86,7 +86,7 @@ int ftp_RETR(struct wgetfile *finfo)
 	size_t size;
 	int i, h[4], p[2];
 
-#define FTP_READLINE() if(!(line = ftp_readline(finfo->sock))) return 1
+#define FTP_READLINE() if(!(line = ftp_readline(finfo))) return 1
 
 	FTP_READLINE();
 
@@ -98,7 +98,7 @@ int ftp_RETR(struct wgetfile *finfo)
 	output_err(OUT_INFO, "FTP Server Ident: %s", sptr);
 	free(line);
 
-	WRITE(finfo->sock, "USER anonymous\r\n");
+	WRITE(finfo, "USER anonymous\r\n");
 	FTP_READLINE();
 
 	i = ftp_retcode(line);
@@ -106,7 +106,7 @@ int ftp_RETR(struct wgetfile *finfo)
 
 	switch(i){
 		case FTP_NEED_PASS:
-			WRITE(finfo->sock, "PASS -wgetlite@\r\n");
+			WRITE(finfo, "PASS -wgetlite@\r\n");
 			FTP_READLINE();
 
 			i = ftp_retcode(line);
@@ -132,11 +132,11 @@ login_fail:
 	/* successful login if we reach here */
 
 
-	WRITE(finfo->sock, "TYPE I\r\n");
+	WRITE(finfo, "TYPE I\r\n");
 	FTP_READLINE();
 	free(line); /* FIXME - check return code */
 
-	fdprintf(finfo->sock, "SIZE %s\r\n", finfo->host_file);
+	wget_printf(finfo, "SIZE %s\r\n", finfo->host_file);
 	FTP_READLINE();
 	i = ftp_retcode(line);
 	if(i != FTP_FILE_STATUS){
@@ -149,7 +149,7 @@ login_fail:
 	free(line);
 
 
-	WRITE(finfo->sock, "PASV\r\n");
+	WRITE(finfo, "PASV\r\n");
 	FTP_READLINE();
 	i = ftp_retcode(line);
 	if(i != FTP_ENTER_PASSIVE_MODE){
@@ -177,7 +177,7 @@ login_fail:
 
 	if(global_cfg.partial && (fpos = ftell(f)) > 0){
 		char *reply;
-		fdprintf(finfo->sock, "REST %ld\r\n", fpos); /* RESTart */
+		wget_printf(finfo, "REST %ld\r\n", fpos); /* RESTart */
 		FTP_READLINE();
 
 		i = ftp_retcode(line);
@@ -192,7 +192,7 @@ login_fail:
 		}
 	}
 
-	fdprintf(finfo->sock, "RETR %s\r\n", finfo->host_file);
+	wget_printf(finfo, "RETR %s\r\n", finfo->host_file);
 
 	return ftp_download(finfo, f, size, fpos, host, port);
 }

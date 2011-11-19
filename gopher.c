@@ -33,7 +33,7 @@ int gopher_retrieve(struct wgetfile *finfo)
 		type = '1';
 	}
 
-	fdprintf(finfo->sock, "%s\r\n", token);
+	wget_printf(finfo, "%s\r\n", token);
 
 	f = wget_open(finfo, NULL);
 	if(!f)

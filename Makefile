@@ -5,12 +5,12 @@ VERSION = 1.1
 
 OBJ = main.o wgetlite.o http.o progress.o util.o \
 	ftp.o output.o term.o cookies.o connections.o \
-	gopher.o
+	gopher.o ssl.o
 
 include config.mk
 
 wgetlite: ${OBJ}
-	${CC} -o $@ ${OBJ}
+	${CC} -o $@ ${OBJ} -lssl
 
 install: wgetlite
 	mkdir -p ${DESTDIR}${PREFIX}/bin
@@ -33,12 +33,14 @@ clean:
 connections.o: connections.c output.h wgetlite.h util.h connections.h
 cookies.o: cookies.c cookies.h output.h wgetlite.h util.h
 ftp.o: ftp.c output.h wgetlite.h ftp.h util.h
+gopher.o: gopher.c output.h wgetlite.h gopher.h util.h
 http.o: http.c output.h wgetlite.h util.h http.h progress.h cookies.h \
  connections.h
-main.o: main.c output.h wgetlite.h term.h cookies.h connections.h
+main.o: main.c output.h wgetlite.h term.h cookies.h connections.h ssl.h
 output.o: output.c output.h wgetlite.h util.h
 progress.o: progress.c progress.h output.h wgetlite.h term.h
+ssl.o: ssl.c output.h wgetlite.h
 term.o: term.c
 util.o: util.c progress.h output.h wgetlite.h util.h connections.h
-wgetlite.o: wgetlite.c output.h wgetlite.h http.h ftp.h util.h term.h \
- connections.h cookies.h
+wgetlite.o: wgetlite.c output.h wgetlite.h http.h ftp.h gopher.h util.h \
+ term.h connections.h ssl.h cookies.h

@@ -14,6 +14,6 @@ void connection_fin(void);
 void connection_close_fd(int fd);
 
 /* this removes the connection if it's closed while reading */
-void connection_discard_data(int fd, int len);
+void connection_discard_data(struct wgetfile *, int len);
 
 #endif

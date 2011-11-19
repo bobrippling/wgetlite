@@ -99,14 +99,14 @@ void connection_close_fd(int fd)
 		CLOSE(fd);
 }
 
-void connection_discard_data(int fd, int len)
+void connection_discard_data(struct wgetfile *finfo, int len)
 {
 	/* read len bytes from fd */
-	if(discard(fd, len)){
+	if(discard(finfo, len)){
 		struct connection *c;
 		const char *host, *port;
 
-		c = connection_find_fd(fd);
+		c = connection_find_fd(finfo->sock);
 		if(c){
 			host = c->host;
 			port = c->port;
@@ -114,7 +114,7 @@ void connection_discard_data(int fd, int len)
 		}else{
 			host = "unknown";
 			port = "unknown";
-			connection_close_fd(fd);
+			connection_close_fd(finfo->sock);
 		}
 
 		/* no idea how much to discard/discard failed, close the connection */

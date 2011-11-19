@@ -14,8 +14,12 @@ struct cfg
 
 struct wgetfile
 {
-	enum { HTTP, FTP, GOPHER } proto;
+	enum { HTTP, HTTPS, FTP, GOPHER } proto;
+
 	int sock;
+	int use_ssl;
+	void *ssl;
+
 	int redirect_no;
 	char *host_file, *host_name, *host_port;
 	char *outname;
@@ -35,6 +39,11 @@ int wget_connect(struct wgetfile *);
 
 FILE *wget_open( struct wgetfile *, char *mode);
 int   wget_close(struct wgetfile *, FILE *);
+
+/* wrappers for ssl */
+int wget_write(struct wgetfile *, void *buf, int len);
+int wget_read( struct wgetfile *, void *buf, int len);
+int wget_peek( struct wgetfile *, void *buf, int len);
 
 int   wget_remove(struct wgetfile *);
 int   wget_remove_if_empty(struct wgetfile *, FILE *);

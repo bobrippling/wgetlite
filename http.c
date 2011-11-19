@@ -48,7 +48,7 @@ void http_free_lines(char **lines)
 	free(lines);
 }
 
-char **http_read_lines(int sock)
+char **http_read_lines(struct wgetfile *finfo)
 {
 	int nlines = 10, curline = 0;
 	char **lines = malloc(nlines * sizeof(char *));
@@ -61,7 +61,7 @@ char **http_read_lines(int sock)
 	lines[0] = NULL;
 
 	do{
-		if(!(lines[curline] = fdreadline(sock))){
+		if(!(lines[curline] = wget_readline(finfo))){
 			http_free_lines(lines);
 			return NULL;
 		}
@@ -111,7 +111,7 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 	size_t len_transfer;
 	int http_code;
 
-	lines = http_read_lines(finfo->sock);
+	lines = http_read_lines(finfo);
 
 	if(!lines){
 		output_err(OUT_ERR, "Premature end-of-stream");
@@ -232,7 +232,7 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 					wget_remove(finfo);
 
 					if(len_transfer)
-						connection_discard_data(finfo->sock, len_transfer);
+						connection_discard_data(finfo, len_transfer);
 					/* else no Content-Length, assume zero */
 
 
@@ -303,7 +303,7 @@ die:
 	if(lines)
 		http_free_lines(lines);
 	if(len_transfer)
-		connection_discard_data(finfo->sock, len_transfer);
+		connection_discard_data(finfo, len_transfer);
 	if(f){
 		wget_remove_if_empty(finfo, f);
 		wget_close(finfo, f);
@@ -311,15 +311,15 @@ die:
 	return 1;
 }
 
-int http_print_lines(char **list, int fd, int n)
+int http_print_lines(struct wgetfile *finfo, char **list, int n)
 {
 	int i;
 	for(i = 0; i < n; i++)
 		if(list[i])
-			if(fdprintf(fd, "%s\r\n", list[i]) == -1)
+			if(wget_printf(finfo, "%s\r\n", list[i]) == -1)
 				return 1;
 
-	if(write(fd, "\r\n", 2) != 2)
+	if(wget_write(finfo, "\r\n", 2) != 2)
 		return 1;
 
 	return 0;
@@ -353,7 +353,7 @@ int http_GET(struct wgetfile *finfo)
 	headers[0] = xstrprintf("GET %s HTTP/1.1", get_req);
 	free(get_req);
 	headers[1] = xstrprintf("Host: %s", finfo->host_name);
-	headers[2] = xstrdup("Connection: Close");
+	headers[2] = xstrdup("Connection: Keep-Alive");
 	hdidx = 3;
 
 	f = wget_open(finfo, NULL);
@@ -396,7 +396,7 @@ int http_GET(struct wgetfile *finfo)
 
 	headers[hdidx] = NULL;
 
-	http_print_lines(headers, finfo->sock, hdidx);
+	http_print_lines(finfo, headers, hdidx);
 	http_free_lines(headers);
 
 	return http_recv(finfo, f);

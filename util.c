@@ -5,11 +5,11 @@
 #include <unistd.h>
 #include <errno.h>
 
+#include <sys/time.h>
+
 #include <netdb.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-
-#include <sys/time.h>
 
 #include "progress.h"
 
@@ -43,14 +43,14 @@ char *xstrdup(const char *s)
 	return d;
 }
 
-char *fdreadline(int sock)
+char *wget_readline(struct wgetfile *finfo)
 {
 	static char buffer[BSIZ];
 	char *pos;
 
-#define RECV(len, flags, lbl_restart) \
+#define RECV(len, rfunc, lbl_restart) \
 lbl_restart: \
-		switch(recv(sock, buffer, len, flags)){ \
+		switch(rfunc(finfo, buffer, len)){ \
 			case -1: \
 				if(errno == EINTR) \
 					goto lbl_restart; \
@@ -60,11 +60,11 @@ lbl_restart: \
 				return NULL; \
 		}
 
-	RECV(sizeof buffer, MSG_PEEK, recv_1);
+	RECV(sizeof buffer, wget_peek, recv_1);
 
 	if((pos = strchr(buffer, '\n'))){
 		int len = pos - buffer + 1;
-		RECV(len, 0, recv_2);
+		RECV(len, wget_read, recv_2);
 
 		if(pos > buffer && pos[-1] == '\r')
 			pos[-1] = '\0';
@@ -78,7 +78,7 @@ lbl_restart: \
 	return NULL;
 }
 
-int fdprintf(int fd, const char *fmt, ...)
+int wget_printf(struct wgetfile *finfo, const char *fmt, ...)
 {
 	char buffer[512];
 	va_list l;
@@ -89,9 +89,9 @@ int fdprintf(int fd, const char *fmt, ...)
 	va_end(l);
 
 	if(n >= sizeof(buffer))
-		output_err(OUT_ERR, "fdprintf() warning: buffer not large enough - FIXME");
+		output_err(OUT_ERR, "wget_printf() warning: buffer not large enough - FIXME");
 
-	return write(fd, buffer, n);
+	return wget_write(finfo, buffer, n);
 }
 
 int dial(const char *host, const char *port)
@@ -157,7 +157,7 @@ int generic_transfer(struct wgetfile *finfo, FILE *out, size_t len,
 		char buffer[BSIZ];
 		long t;
 
-		switch((nread = recv(finfo->sock, buffer, sizeof buffer, 0))){
+		switch((nread = wget_read(finfo, buffer, sizeof buffer))){
 			case -1:
 				if(errno == EINTR)
 					continue;
@@ -166,6 +166,7 @@ int generic_transfer(struct wgetfile *finfo, FILE *out, size_t len,
 				if(len && sofar == len)
 					goto end_of_stream;
 				connection_close_fd(finfo->sock);
+				/* should probably save errno from before */
 				output_perror("recv()");
 				RET(1);
 
@@ -208,7 +209,7 @@ end_of_stream:
 				}
 
 				if(sofar == len)
-					RET(0); /* don't wait for more, maybe be pipelining */
+					RET(0); /* don't wait for more, we may be http-pipelining */
 
 				chunk += nread;
 
@@ -219,6 +220,8 @@ end_of_stream:
 
 		t = mstime();
 		if(last_progress + 250 < t){
+			/* spin the spinner, do it more frequently than we check for speed updates */
+
 			if(last_speed_calc + 1000 < t){
 				long tdiff = t - last_speed_calc;
 
@@ -285,7 +288,7 @@ char *xstrprintf(const char *fmt, ...)
 	return buf;
 }
 
-int discard(int fd, int len)
+int discard(struct wgetfile *finfo, int len)
 {
 	char bin[4096];
 
@@ -297,7 +300,7 @@ int discard(int fd, int len)
 			amt = len;
 
 restart:
-		n = recv(fd, bin, amt, 0);
+		n = wget_read(finfo, bin, amt);
 		if(n == -1 && errno == EINTR)
 			goto restart;
 		if(n <= 0)

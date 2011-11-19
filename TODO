@@ -4,4 +4,6 @@ authentication:
 
 Exit code varies - 8 for HTTP 404, etc etc
 
-Recursive HTTP
+Recursive HTTP - httpls
+
+ETA/time left

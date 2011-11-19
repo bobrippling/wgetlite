@@ -6,6 +6,11 @@
 #ifndef __FreeBSD__
 #include <alloca.h>
 #endif
+#include <netdb.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+
+#include <openssl/ssl.h>
 
 #include <unistd.h>
 
@@ -18,8 +23,8 @@
 
 #include "util.h"
 #include "term.h"
-
 #include "connections.h"
+#include "ssl.h"
 
 #ifndef PATH_MAX
 # define PATH_MAX 255
@@ -30,14 +35,14 @@
 
 char *proto_default_port(const char *proto)
 {
-	static char port_ftp[] = "21", port_http[] = "80",
-		    port_gopher[] = "70";
+	static char port_ftp[]    = "21",
+	            port_http[]   = "80",
+	            port_gopher[] = "70",
+	            port_https[]  = "443";
 
-	if(!strcmp(proto, "ftp"))
-		return port_ftp;
-	if(!strcmp(proto, "gopher"))
-		return port_gopher;
-
+	if(!strcmp(proto, "ftp"))    return port_ftp;
+	if(!strcmp(proto, "gopher")) return port_gopher;
+	if(!strcmp(proto, "https"))  return port_https;
 	return port_http;
 }
 
@@ -186,6 +191,12 @@ int wget_connect(struct wgetfile *finfo)
 		finfo->sock = dial(host, port);
 		if(finfo->sock == -1)
 			return 1; /* dial() prints the error */
+		if(finfo->use_ssl){
+			if(sslify(finfo))
+				return 1;
+			output_err(OUT_INFO, "SSL Init on fd %d successful", finfo->sock);
+		}
+
 		connection_add(finfo->sock, host, port);
 	}else{
 		output_err(OUT_INFO, "Reusing connection to %s:%s", host, port);
@@ -213,8 +224,10 @@ int wget(const char *url, int redirect_no)
 	if(parseurl(url, &host, &file, &proto, &port))
 		return 1;
 
-	if(     !strcmp(proto, "http")) finfo.proto = HTTP;
-	else if(!strcmp(proto, "ftp"))  finfo.proto = FTP;
+	/* I've got indentation-OCD. Can't stand python though */
+	if(     !strcmp(proto, "http"))   finfo.proto = HTTP;
+	else if(!strcmp(proto, "https"))  finfo.proto = HTTPS;
+	else if(!strcmp(proto, "ftp"))    finfo.proto = FTP;
 	else if(!strcmp(proto, "gopher")) finfo.proto = GOPHER;
 	else{
 		ret = 1;
@@ -250,6 +263,7 @@ int wget(const char *url, int redirect_no)
 	finfo.host_name = host;
 	finfo.host_port = port;
 	finfo.outname   = outname;
+	finfo.use_ssl   = finfo.proto == HTTPS;
 
 	if(wget_connect(&finfo))
 		goto bail;
@@ -257,6 +271,7 @@ int wget(const char *url, int redirect_no)
 	switch(finfo.proto) {
 	default:
 	case HTTP:
+	case HTTPS:
 		ret = http_GET(&finfo);
 		break;
 	case FTP:
@@ -287,4 +302,30 @@ void wget_success(struct wgetfile *finfo)
 	output_err(OUT_INFO, "Saved '%s' -> '%s'",
 			finfo->host_file,
 			finfo->outname ? finfo->outname : "stdout");
+}
+
+/* SSL wrappers */
+int wget_write(struct wgetfile *finfo, void *buf, int len)
+{
+	if(finfo->ssl)
+		return SSL_write(finfo->ssl, buf, len);
+	else
+		return write(finfo->sock, buf, len);
+}
+
+int wget_read(struct wgetfile *finfo, void *buf, int len)
+{
+	if(finfo->ssl)
+		return SSL_read(finfo->ssl, buf, len);
+	else
+		return read(finfo->sock, buf, len);
+
+}
+
+int wget_peek(struct wgetfile *finfo, void *buf, int len)
+{
+	if(finfo->ssl)
+		return SSL_peek(finfo->ssl, buf, len);
+	else
+		return recv(finfo->sock, buf, len, MSG_PEEK);
 }
