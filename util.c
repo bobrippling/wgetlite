@@ -139,6 +139,31 @@ retry:
 	return sock;
 }
 
+const char *bytes_to_str(long bits)
+{
+	static char buf[64];
+	const char *sizstr;
+	int div;
+
+	if(bits < 1024){
+		div    = 1;
+		sizstr = "";
+	}else if(bits < 1024 * 1024){
+		div    = 1024;
+		sizstr = "K";
+	}else if(bits < 1024 * 1024 * 1024){
+		div    = 1024 * 1024;
+		sizstr = "M";
+	}else{
+		div    = 1024 * 1024 * 1024;
+		sizstr = "G";
+	}
+
+	snprintf(buf, sizeof buf, "%ld %sB/s", bits / div, sizstr);
+
+	return buf;
+}
+
 int generic_transfer(struct wgetfile *finfo, FILE *out, size_t len,
 		size_t sofar, int closefd)
 {

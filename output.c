@@ -20,7 +20,7 @@ void output_err(enum printlevel l, const char *fmt, ...)
 		fprintf(f, "\r%s: ", argv0);
 		va_start(l, fmt);
 		vfprintf(f, fmt, l);
-		fputc('\n', f);
 		va_end(l);
+		fputc('\n', f);
 	}
 }
