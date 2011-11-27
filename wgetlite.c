@@ -68,6 +68,7 @@ int parseurl(const char *url,
 		/* file://tim.txt */
 		file = host;
 		host = NULL;
+		port = NULL;
 	}else{
 		file = strchr(host, '/');
 
@@ -175,10 +176,13 @@ int wget_connect(struct wgetfile *finfo)
 	extern struct cfg global_cfg;
 	const char *host, *port;
 
-	if(finfo->proto == HTTP && global_cfg.http_proxy)
-		host = global_cfg.http_proxy, port = global_cfg.http_proxy_port;
-	else
-		host = finfo->host_name, port = finfo->host_port;
+	if(finfo->proto == HTTP && global_cfg.http_proxy){
+		host = global_cfg.http_proxy;
+		port = global_cfg.http_proxy_port;
+	}else{
+		host = finfo->host_name;
+		port = finfo->host_port;
+	}
 
 	finfo->sock = connection_fd(host, port);
 
@@ -212,6 +216,11 @@ int wget(const char *url, int redirect_no)
 
 	if(parseurl(url, &host, &file, &proto, &port))
 		return 1;
+
+	if(!host || !port){
+		output_err(OUT_ERR, "invalid url \"%s\"", url);
+		goto bail;
+	}
 
 	if(     !strcmp(proto, "http")) finfo.proto = HTTP;
 	else if(!strcmp(proto, "ftp"))  finfo.proto = FTP;
