@@ -18,7 +18,7 @@ char *wget_readline(struct wgetfile *finfo);
 int   wget_printf(struct wgetfile *finfo, const char *fmt, ...);
 int   dial(const char *host, const char *port);
 
-const char *bytes_to_str(long bits);
+const char *bytes_to_str(char *buf, int buflen, long bits);
 
 /* transfer however many bytes needed on a socket */
 int generic_transfer(struct wgetfile *finfo, FILE *out, size_t len,

@@ -16,10 +16,11 @@ void progress_unknown(long sofar, long bps)
 {
 	if(PROGRESS_CAN_SHOW()){
 		static int i = 0;
+		char buf[2][64];
 
 		fprintf(stderr, "\r%s %s %c...",
-				bytes_to_str(sofar),
-				bytes_to_str(bps),
+				bytes_to_str(buf[0], sizeof buf[0], sofar),
+				bytes_to_str(buf[1], sizeof buf[1], bps),
 				"/-\\|"[i++ % 4]);
 	}
 }
@@ -56,6 +57,7 @@ void progress_show(long this, long total, long bps)
 	if(PROGRESS_CAN_SHOW()){
 		register int percent = 100.0f * (float)this / (float)total;
 		const char *pre, *post;
+		char buf[3][64];
 
 		if(PROGRESS_TERMINAL()){
 			pre = CLR_TO_EOL;
@@ -69,9 +71,9 @@ void progress_show(long this, long total, long bps)
 				"%s%d%% (%s / %s) %s/s %s",
 				pre,
 				percent,
-				bytes_to_str(this),
-				bytes_to_str(total),
-				bytes_to_str(bps),
+				bytes_to_str(buf[0], sizeof buf[0], this),
+				bytes_to_str(buf[1], sizeof buf[1], total),
+				bytes_to_str(buf[2], sizeof buf[2], bps),
 				post);
 	}
 }
