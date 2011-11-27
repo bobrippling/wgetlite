@@ -261,7 +261,7 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 		pos = 0;
 
 	if(len_transfer)
-		output_err(OUT_INFO, "HTTP: Content-Length: %ld", len_transfer);
+		output_err(OUT_INFO, "HTTP: Content-Length: %s", bytes_to_str(len_transfer));
 	else
 		output_err(OUT_INFO, "HTTP: No Content-Length header");
 

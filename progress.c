@@ -3,6 +3,7 @@
 #include "output.h"
 #include "wgetlite.h"
 #include "term.h"
+#include "util.h"
 
 #define CLR_TO_EOL "\x1b[K"
 #define PROGRESS_CAN_SHOW() (global_cfg.verbosity <= OUT_WARN)
@@ -11,33 +12,14 @@
 extern struct cfg global_cfg;
 
 
-static void progress_get_div(long total, int *div, const char **sizstr)
-{
-	if(total < 1024){
-		*div    = 1;
-		*sizstr = "";
-	}else if(total < 1024 * 1024){
-		*div    = 1024;
-		*sizstr = "K";
-	}else{
-		*div    = 1024 * 1024;
-		*sizstr = "M";
-	}
-}
-
 void progress_unknown(long sofar, long bps)
 {
-	static int i = 0;
-
 	if(PROGRESS_CAN_SHOW()){
-		int div;
-		const char *spd;
+		static int i = 0;
 
-		progress_get_div(bps, &div, &spd);
-
-		fprintf(stderr, "\r%ldB %ld %sB/s %c...",
-				sofar,
-				bps / div, spd,
+		fprintf(stderr, "\r%s %s %c...",
+				bytes_to_str(sofar),
+				bytes_to_str(bps),
 				"/-\\|"[i++ % 4]);
 	}
 }
@@ -74,8 +56,6 @@ void progress_show(long this, long total, long bps)
 	if(PROGRESS_CAN_SHOW()){
 		register int percent = 100.0f * (float)this / (float)total;
 		const char *pre, *post;
-		const char *sizstr, *bpssizstr;
-		int div, bpsdiv;
 
 		if(PROGRESS_TERMINAL()){
 			pre = CLR_TO_EOL;
@@ -85,15 +65,13 @@ void progress_show(long this, long total, long bps)
 			post = "\n";
 		}
 
-		progress_get_div(total, &div,    &sizstr);
-		progress_get_div(bps,   &bpsdiv, &bpssizstr);
-
 		fprintf(stderr,
-				"%s%d%% (%ld %sB / %ld %sB) %ld%sB/s %s",
-				pre, percent,
-				this  / div, sizstr,
-				total / div, sizstr,
-				bps / bpsdiv, bpssizstr,
+				"%s%d%% (%s / %s) %s/s %s",
+				pre,
+				percent,
+				bytes_to_str(this),
+				bytes_to_str(total),
+				bytes_to_str(bps),
 				post);
 	}
 }

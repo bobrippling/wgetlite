@@ -38,7 +38,7 @@ http.o: http.c output.h wgetlite.h util.h http.h progress.h cookies.h \
  connections.h
 main.o: main.c output.h wgetlite.h term.h cookies.h connections.h ssl.h
 output.o: output.c output.h wgetlite.h util.h
-progress.o: progress.c progress.h output.h wgetlite.h term.h
+progress.o: progress.c progress.h output.h wgetlite.h term.h util.h
 ssl.o: ssl.c output.h wgetlite.h
 term.o: term.c
 util.o: util.c progress.h output.h wgetlite.h util.h connections.h

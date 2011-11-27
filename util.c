@@ -10,6 +10,8 @@
 #include <netdb.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include "progress.h"
 
@@ -96,22 +98,28 @@ int wget_printf(struct wgetfile *finfo, const char *fmt, ...)
 
 int dial(const char *host, const char *port)
 {
+	extern struct cfg global_cfg;
+	extern const char *argv0;
+	FILE *errfile = global_cfg.logf;
 	struct addrinfo hints, *list = NULL, *iter;
+	struct sockaddr_in connect_addr;
 	int sock, last_err;
 
-	memset(&hints, '\0', sizeof hints);
+	if(!errfile)
+		errfile = stderr;
+
+	memset(&hints, 0, sizeof hints);
 	hints.ai_family   = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 
-	/* TODO: printf("Resolving %s..."); ... printf(" %d.%d.%d.%d\n"); */
+	fprintf(errfile, "%s: Resolving %s:%s...", argv0, host, port);
 
 	if((last_err = getaddrinfo(host, port, &hints, &list))){
+		fputc('\n', errfile);
 		output_err(OUT_ERR, "getaddrinfo(): \"%s:%s\": %s", host, port, gai_strerror(last_err));
 		return -1;
 	}
 
-
-	/* TODO: printf("Connectan to ..."); "printf("... connected.\n"); */
 	for(iter = list; iter; iter = iter->ai_next){
 		sock = socket(iter->ai_family, iter->ai_socktype, iter->ai_protocol);
 
@@ -119,10 +127,12 @@ int dial(const char *host, const char *port)
 			continue;
 
 retry:
-		if(connect(sock, iter->ai_addr, iter->ai_addrlen) == 0)
+		if(connect(sock, iter->ai_addr, iter->ai_addrlen) == 0){
+			memcpy(&connect_addr, iter->ai_addr, iter->ai_addrlen);
 			break;
-		else if(errno == EINTR)
+		}else if(errno == EINTR){
 			goto retry;
+		}
 
 		if(errno)
 			last_err = errno;
@@ -134,9 +144,38 @@ retry:
 
 	if(sock == -1){
 		errno = last_err;
+		fputc('\n', errfile);
 		output_err(OUT_ERR, "connect to %s:%s: %s", host, port, strerror(errno));
 	}
+
+	fprintf(errfile, " %s\n", inet_ntoa(connect_addr.sin_addr));
+
 	return sock;
+}
+
+const char *bytes_to_str(long bits)
+{
+	static char buf[64];
+	const char *sizstr;
+	int div;
+
+	if(bits < 1024){
+		div    = 1;
+		sizstr = "";
+	}else if(bits < 1024 * 1024){
+		div    = 1024;
+		sizstr = "K";
+	}else if(bits < 1024 * 1024 * 1024){
+		div    = 1024 * 1024;
+		sizstr = "M";
+	}else{
+		div    = 1024 * 1024 * 1024;
+		sizstr = "G";
+	}
+
+	snprintf(buf, sizeof buf, "%ld %sB/s", bits / div, sizstr);
+
+	return buf;
 }
 
 int generic_transfer(struct wgetfile *finfo, FILE *out, size_t len,
