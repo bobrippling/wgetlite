@@ -40,5 +40,6 @@ int   wget_remove(struct wgetfile *);
 int   wget_remove_if_empty(struct wgetfile *, FILE *);
 
 void  wget_success(struct wgetfile *);
+void  wget_failure(struct wgetfile *);
 
 #endif

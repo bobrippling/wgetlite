@@ -291,9 +291,14 @@ bail:
 	goto fin;
 }
 
+#define SAVE_FILE (finfo->outname ? finfo->outname : "stdout")
+
 void wget_success(struct wgetfile *finfo)
 {
-	output_err(OUT_INFO, "Saved '%s' -> '%s'",
-			finfo->host_file,
-			finfo->outname ? finfo->outname : "stdout");
+	output_err(OUT_INFO, "Saved '%s' -> '%s'", finfo->host_file, SAVE_FILE);
+}
+
+void wget_failure(struct wgetfile *finfo)
+{
+	output_err(OUT_WARN, "Partial data saved to '%s'", SAVE_FILE);
 }

@@ -102,7 +102,7 @@ int dial(const char *host, const char *port)
 	extern const char *argv0;
 	FILE *errfile = global_cfg.logf;
 	struct addrinfo hints, *list = NULL, *iter;
-	struct sockaddr_in connect_addr;
+	struct sockaddr *last_addr = NULL;
 	int sock, last_err;
 
 	if(!errfile)
@@ -112,7 +112,7 @@ int dial(const char *host, const char *port)
 	hints.ai_family   = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 
-	fprintf(errfile, "%s: Resolving %s:%s...", argv0, host, port);
+	fprintf(errfile, "%s: resolving %s:%s...", argv0, host, port);
 
 	if((last_err = getaddrinfo(host, port, &hints, &list))){
 		fputc('\n', errfile);
@@ -126,9 +126,9 @@ int dial(const char *host, const char *port)
 		if(sock == -1)
 			continue;
 
+		last_addr = iter->ai_addr;
 retry:
 		if(connect(sock, iter->ai_addr, iter->ai_addrlen) == 0){
-			memcpy(&connect_addr, iter->ai_addr, iter->ai_addrlen);
 			break;
 		}else if(errno == EINTR){
 			goto retry;
@@ -140,22 +140,22 @@ retry:
 		sock = -1;
 	}
 
+	if(last_addr)
+		fprintf(errfile, " %s", inet_ntoa(((struct sockaddr_in *)last_addr)->sin_addr));
+	fputc('\n', errfile);
+
 	freeaddrinfo(list);
 
 	if(sock == -1){
 		errno = last_err;
-		fputc('\n', errfile);
 		output_err(OUT_ERR, "connect to %s:%s: %s", host, port, strerror(errno));
 	}
-
-	fprintf(errfile, " %s\n", inet_ntoa(connect_addr.sin_addr));
 
 	return sock;
 }
 
-const char *bytes_to_str(long bits)
+const char *bytes_to_str(char *buf, int buflen, long bits)
 {
-	static char buf[64];
 	const char *sizstr;
 	int div;
 
@@ -173,7 +173,7 @@ const char *bytes_to_str(long bits)
 		sizstr = "G";
 	}
 
-	snprintf(buf, sizeof buf, "%ld %sB/s", bits / div, sizstr);
+	snprintf(buf, buflen, "%ld %sB", bits / div, sizstr);
 
 	return buf;
 }
@@ -284,7 +284,9 @@ fin:
 
 	if(closefd) {
 		ret |= wget_close(finfo, out);
-		if(!ret)
+		if(ret)
+			wget_failure(finfo);
+		else
 			wget_success(finfo);
 	}
 

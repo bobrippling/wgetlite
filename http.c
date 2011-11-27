@@ -260,10 +260,12 @@ int http_recv(struct wgetfile *finfo, FILE *f)
 	if(pos == -1)
 		pos = 0;
 
-	if(len_transfer)
-		output_err(OUT_INFO, "HTTP: Content-Length: %s", bytes_to_str(len_transfer));
-	else
+	if(len_transfer){
+		char buf[64];
+		output_err(OUT_INFO, "HTTP: Content-Length: %s", bytes_to_str(buf, sizeof buf, len_transfer));
+	}else{
 		output_err(OUT_INFO, "HTTP: No Content-Length header");
+	}
 
 	/* len is the amount to be sent during this transmission */
 	if(http_code == HTTP_PARTIAL_CONTENT){
