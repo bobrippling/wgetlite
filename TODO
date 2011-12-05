@@ -1,3 +1,5 @@
+Retry on read errors, like wget - reconnect + resume
+
 authentication:
 	http://bob:secret@download.com/file.tar.gz
 	ftp://tim:secret@download.com/file.bz2
